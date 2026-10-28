@@ -11,6 +11,7 @@
   <aside>
     <h1>PromptDeck</h1><p class="subtitle">Your existing VS Code Copilot account</p>
     <button id="connect" class="primary">Connect VS Code</button>
+    <button id="properties" class="properties-button">Connection properties</button>
     <div class="connection" role="status" aria-live="polite"><span id="dot" aria-hidden="true"></span><span id="connection">Starting…</span></div>
     <p class="hint">Keep VS Code open. In its Command Palette, run <strong>PromptDeck: Connect Desktop</strong>.</p>
     <div class="session-heading"><h2>Sessions</h2><button id="new-session" aria-label="New session">+ New</button></div>
@@ -31,6 +32,13 @@
       <pre id="diagnostics" tabindex="0" aria-label="Diagnostic log"></pre>
     </section>
   </main>
+  <dialog id="properties-dialog" aria-labelledby="properties-title">
+    <div class="properties-heading"><h2 id="properties-title">GitHub / VS Code connection properties</h2><button id="close-properties" aria-label="Close connection properties">Close</button></div>
+    <p id="properties-status" role="status"></p>
+    <p class="properties-notice">These are metadata and configured settings from the connected VS Code extension host. They are not a traffic trace. The actual inference URL, resolved proxy/PAC route, and active Copilot account are not exposed by the Language Model API.</p>
+    <div class="properties-toolbar"><button id="refresh-properties">Refresh from VS Code</button><span id="properties-feedback" role="status"></span></div>
+    <div id="properties-content"></div>
+  </dialog>
   <script src="renderer.js"></script>
 </body>
 </html>

@@ -67,3 +67,17 @@ test('diagnostics redact credential patterns and authentication headers', () => 
   const result = redact('Authorization: Bearer example-secret\naccess_token=gho_exampleValue123 capability=abcdef');
   assert.doesNotMatch(result, /example-secret|exampleValue123|abcdef/);
 });
+test('connection properties cross real IPC with a sanitized allowlist and test evidence', async t => {
+  const f = await fixture(t); const app = new Controller(f.bridge, f.log);
+  await app.refreshProperties();
+  const snapshot = app.state();
+  assert.equal(snapshot.properties.editor.rows[0].value, 'http://proxy.example:8080');
+  assert.equal(snapshot.properties.pipePath, f.bridge.pipePath);
+  assert.equal(snapshot.properties.protocol, 2);
+  assert.doesNotMatch(JSON.stringify(snapshot), /excluded-test-secret|user:password|hidden-query/);
+  assert.ok(!JSON.stringify(snapshot).includes(f.bridge.capability));
+  assert.equal(await app.test('model-a'), true);
+  assert.equal(app.state().properties.lastTest.status, 'Passed');
+  assert.equal(app.state().properties.lastTest.model, 'model-a');
+  assert.doesNotMatch(await fs.readFile(f.log.logPath, 'utf8'), /proxy\.example|excluded-test-secret|user:password/);
+});

@@ -1,4 +1,18 @@
-# Electron rebuild verification — 2026-10-28
+# Electron verification — 2026-10-28
+
+## Connection properties update (0.3.0)
+
+The new read-only **Connection properties** panel displays editor-provided proxy/TLS settings, sanitized proxy environment addresses, available GitHub account labels, provider/configured enterprise URL origins, editor/extension/host identity, model metadata, snapshot time, and connection-test evidence. The actual inference URL, selected Copilot account and resolved proxy/PAC route are explicitly unavailable through the public Language Model API. The panel does not equate configuration with an observed route.
+
+`npm test`: **13 tests PASS**. New checks verify that the collector does not invoke `authentication.getSession`, read token properties or `http.proxyAuthorization`, inspect secret environment variables, or expose URL userinfo/path/query/fragment secrets. Unknown report fields are dropped at the desktop boundary. A real IPC refresh test verifies sanitized display state, excluded local capability, and last-test evidence. These metadata snapshots are not appended to the diagnostic log.
+
+`npm run test:electron`: **PASS**, including opening/closing the properties dialog, showing the sanitized proxy origin and unavailable endpoint field, rendering the last successful test, and refreshing metadata without changing settings. These use fixture metadata and fake models. A production editor/network-route snapshot has not been independently verified by these tests.
+
+Bridge 0.3.0 packaging and Windows x64 packaging: **PASS**. The packaged executable also passed the same UI/property-refresh checks (`npm run test:packaged`). Current artifacts: `artifacts/connection-properties/PromptDeck-win32-x64/PromptDeck.exe` and `artifacts/promptdeck-bridge-0.3.0.vsix`. Screenshot: `artifacts/connection-properties-packaged.png`. Artifacts are excluded from Git.
+
+Official references checked: [VS Code networking](https://code.visualstudio.com/docs/setup/network) describes system proxy support and extension-specific limitations; [VS Code API](https://code.visualstudio.com/api/references/vscode-api) documents account metadata, effective configuration, editor identity, and model properties. No new network probe, interception, credential access, or policy modification was introduced.
+
+## Original Electron rebuild (0.2.0)
 
 The application has been rebuilt with **Node.js and Electron 45.1.0**, replacing the C#/.NET/WPF source and dependencies. VS Code bridge **0.2.0** is the only model connection. It reuses model access from the existing signed-in VS Code profile; it does not create a GitHub/CLI authentication session or export GitHub credentials.
 

@@ -7,9 +7,11 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createHost } = require('./bridge');
 const { frame, readFrames } = require('./protocol');
+const { collectConnectionInfo } = require('./connection-info');
 
 function activate(context) {
-  const host = createHost(vscode);
+  const connectionInfo = () => collectConnectionInfo(vscode, context);
+  const host = createHost(vscode, { connectionInfo });
   let instance = crypto.randomUUID();
   let socket;
   let connecting = false;
@@ -30,6 +32,7 @@ function activate(context) {
       if (!accounts.length) throw new Error('No existing GitHub account is signed in to this VS Code instance. Open the VS Code profile where Copilot already works. The bridge will not create a new GitHub login.');
       const models = await host.discover();
       if (!models.length) throw new Error('VS Code exposes no Copilot models. Check your existing Copilot sign-in and model permissions inside VS Code. No CLI or new GitHub login will be attempted.');
+      const properties = await connectionInfo();
       const directory = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
       const endpoint = JSON.parse(await fs.readFile(path.join(directory, 'PromptDeck', 'bridge-endpoint.json'), 'utf8'));
       if (endpoint.protocol !== 2 || !/^\\\\\.\\pipe\\promptdeck-vscode-[a-f0-9-]+$/i.test(endpoint.pipePath)
@@ -38,7 +41,7 @@ function activate(context) {
       socket = connection;
       let accepted = false;
       connection.on('connect', () => {
-        connection.write(frame({ type: 'hello', protocol: 2, capability: endpoint.capability, instance, version: vscode.version, models }));
+        connection.write(frame({ type: 'hello', protocol: 2, capability: endpoint.capability, instance, version: vscode.version, models, connectionInfo: properties }));
       });
       readFrames(connection, message => {
           if (!accepted) {

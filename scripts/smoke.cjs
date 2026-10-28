@@ -33,7 +33,17 @@ const { connectPeer, fakeVsCode } = require('../test/helpers.cjs');
     assert.equal(await page.locator('#conversation img').count(), 0); assert.equal(await page.evaluate(() => window.injected), undefined);
     await page.locator('#test').click();
     await page.waitForFunction(() => document.getElementById('connection').textContent.includes('inference verified'));
+    await page.locator('#properties').click();
+    await page.locator('#properties-dialog[open]').waitFor();
+    assert.ok((await page.locator('#properties-content').innerText()).includes('http://proxy.example:8080'));
+    assert.ok((await page.locator('#properties-content').innerText()).includes('Not exposed by VS Code'));
+    assert.ok((await page.locator('#properties-content').innerText()).includes('Passed'));
+    assert.ok(!(await page.locator('#properties-content').innerText()).includes('user:password'));
+    await page.locator('#refresh-properties').click();
+    await page.waitForFunction(() => document.getElementById('properties-feedback').textContent.includes('refreshed'));
     await fs.mkdir(path.join(root, 'artifacts'), { recursive: true });
+    await page.screenshot({ path: path.join(root, 'artifacts', packaged ? 'connection-properties-packaged.png' : 'connection-properties.png') });
+    await page.locator('#close-properties').click();
     await page.screenshot({ path: path.join(root, 'artifacts', packaged ? 'electron-packaged-smoke.png' : 'electron-smoke.png') });
     console.log('PASS: ' + (packaged ? 'packaged Windows executable' : 'actual Electron window') + ', three sessions, isolated drafts, renderer sandbox, literal model output, and connection-test UI using fake VS Code models.');
   } finally {

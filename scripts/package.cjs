@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
   const option = process.argv.find(arg => arg.startsWith('--out='));
   const out = path.resolve(root, option ? option.slice('--out='.length) : 'artifacts/electron');
   if (!out.startsWith(path.join(root, 'artifacts') + path.sep)) throw new Error('Package output must be inside this repository\'s artifacts directory.');
-  const vsix = path.join(root, 'artifacts', 'promptdeck-bridge-0.2.0.vsix');
+  const vsix = path.join(root, 'artifacts', `promptdeck-bridge-${require('../vscode-bridge/package.json').version}.vsix`);
   await fs.access(vsix);
   const outputs = await packager({ dir: root, name: 'PromptDeck', platform: 'win32', arch: 'x64',
     out, overwrite: true, asar: true, prune: true,

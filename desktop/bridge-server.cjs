@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const { frame, readFrames } = require('../vscode-bridge/protocol');
+const { safeReport, safeText } = require('../vscode-bridge/connection-info');
 
 class BridgeServer extends EventEmitter {
   constructor({ directory, log, pipePath } = {}) {
@@ -17,6 +18,7 @@ class BridgeServer extends EventEmitter {
     this.endpointFile = path.join(directory, 'bridge-endpoint.json');
     this.pending = new Map(); this.sockets = new Set(); this.peer = null;
     this.models = []; this.instance = null; this.version = null;
+    this.connectionInfo = null; this.connectedAt = null;
   }
   get connected() { return Boolean(this.peer && !this.peer.destroyed); }
   async start() {
@@ -53,6 +55,7 @@ class BridgeServer extends EventEmitter {
         const models = this.parseModels(message.models);
         authenticated = true; clearTimeout(timer); this.peer = socket;
         this.instance = message.instance; this.version = String(message.version || 'unknown'); this.models = models;
+        this.connectionInfo = safeReport(message.connectionInfo); this.connectedAt = new Date().toISOString();
         socket.write(frame({ event: 'accepted' }));
         this.log?.write(`VS Code connected: version=${this.version}; models=${models.length}. Existing VS Code model access; credentials stay in the editor.`);
         this.emit('connected'); return;
@@ -68,7 +71,9 @@ class BridgeServer extends EventEmitter {
   parseModels(models) {
     if (!Array.isArray(models) || models.length > 1000) throw new Error('Invalid VS Code model catalog.');
     return models.filter(m => m && typeof m.id === 'string' && m.id.length <= 512)
-      .map(m => ({ id: m.id, name: String(m.name || m.id).slice(0, 512) }));
+      .map(m => ({ id: safeText(m.id), name: safeText(m.name || m.id).slice(0, 512),
+        vendor: safeText(m.vendor || ''), family: safeText(m.family || ''), version: safeText(m.version || ''),
+        maxInputTokens: Number.isFinite(m.maxInputTokens) ? m.maxInputTokens : null }));
   }
   request(method, args = {}, { signal, timeout = 120000 } = {}) {
     if (!this.connected) return Promise.reject(Object.assign(new Error('VS Code bridge is not connected. Run PromptDeck: Connect Desktop in the signed-in VS Code profile.'), { code: 'not_connected' }));
@@ -94,6 +99,11 @@ class BridgeServer extends EventEmitter {
     this.models = this.parseModels(await this.request('models', {}, options));
     if (!this.models.length) throw Object.assign(new Error('VS Code returned no Copilot models. Check its existing account, model consent, and organization policy.'), { code: 'no_models' });
     return this.models;
+  }
+  async refreshConnectionInfo() {
+    const result = safeReport(await this.request('connectionInfo', {}, { timeout: 10000 }));
+    if (!result) throw new Error('VS Code did not return connection metadata. Update bridge 0.3.0.');
+    this.connectionInfo = result; return result;
   }
   async close() {
     for (const socket of this.sockets) socket.destroy();

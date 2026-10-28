@@ -8,6 +8,7 @@ async function command(name, args) {
 }
 function render(next) {
   state = next;
+  if ($('properties-dialog').open) renderProperties();
   if (!state.sessions.some(s => s.id === selected)) selected = state.sessions[0]?.id;
   const current = state.sessions.find(s => s.id === selected); if (!current) return;
   const key = JSON.stringify(state.sessions.map(s => [s.id, s.title, s.busy])) + selected;
@@ -57,3 +58,60 @@ $('send').onclick = () => command('send', { id: selected }); $('cancel').onclick
 $('test').onclick = () => command('test', { model: state.sessions.find(s => s.id === selected)?.model });
 $('cancel-test').onclick = () => command('cancelTest'); $('logs').onclick = () => command('logs');
 window.promptDeck.onState(render); command('state').then(render);
+
+function renderProperties() {
+  const p = state.properties || {};
+  const rows = [];
+  const add = (section, key, value, evidence = 'Desktop metadata', source = '') => rows.push({ section, key, value: String(value ?? 'Not available'), evidence, source });
+  $('properties-status').textContent = (p.connected ? 'Connected to VS Code' : 'Disconnected — any editor snapshot below is historical')
+    + (p.editor?.capturedAt ? ' · Snapshot: ' + new Date(p.editor.capturedAt).toLocaleString() : ' · Editor properties not received; connect bridge 0.3.0');
+  $('refresh-properties').disabled = !p.connected;
+  add('Desktop → VS Code transport', 'Application', 'PromptDeck ' + (p.runtime?.appVersion || ''));
+  add('Desktop → VS Code transport', 'Desktop runtime', `Electron ${p.runtime?.electron || '?'} / Node ${p.runtime?.node || '?'} / ${p.runtime?.platform || '?'} ${p.runtime?.arch || ''}`);
+  add('Desktop → VS Code transport', 'Local IPC', p.pipePath, 'Local pipe address; not a GitHub URL');
+  add('Desktop → VS Code transport', 'Protocol / desktop process', `${p.protocol} / PID ${p.desktopPid}`);
+  add('Desktop → VS Code transport', 'VS Code bridge instance', p.bridgeInstance);
+  add('Desktop → VS Code transport', 'Last bridge handshake', p.connectedAt ? new Date(p.connectedAt).toLocaleString() : 'Not connected');
+  add('Desktop → VS Code transport', 'Remote inference HTTP in Electron', 'None — delegated to VS Code; desktop proxy settings are not the model route');
+  add('Desktop → VS Code transport', 'Local connection key / GitHub credentials', 'Never displayed', 'Intentionally excluded');
+  rows.push(...(p.editor?.rows || []));
+  const current = state.sessions.find(s => s.id === selected); const model = state.models.find(m => m.id === current?.model);
+  for (const [key, value] of Object.entries({ 'Selected model ID': model?.id, 'Display name': model?.name, Vendor: model?.vendor, Family: model?.family, Version: model?.version, 'Maximum input tokens': model?.maxInputTokens }))
+    add('Selected session / model', key, value || 'Not exposed / not selected', 'VS Code model metadata; not a server URL');
+  add('Selected session / model', 'Local conversation ID', current?.id);
+  add('Verification evidence', 'Last connection test', p.lastTest?.status || 'Not run', 'Inference result only; does not reveal network route');
+  if (p.lastTest) {
+    add('Verification evidence', 'Test model / completion', `${p.lastTest.model || 'Not selected'} / ${p.lastTest.completedAt || 'Running'}`);
+    add('Verification evidence', 'Test bridge instance', p.lastTest.bridgeInstance);
+    if (p.lastTest.error) add('Verification evidence', 'Test failure', `${p.lastTest.stage}: ${p.lastTest.error}`);
+  }
+  if (p.lastResponse) add('Verification evidence', 'Last successful chat response', `${p.lastResponse.at} / model ${p.lastResponse.model} / instance ${p.lastResponse.bridgeInstance}`, 'Response received; not proof of a particular proxy or account');
+  const groups = new Map(); for (const row of rows) { if (!groups.has(row.section)) groups.set(row.section, []); groups.get(row.section).push(row); }
+  const content = [];
+  const order = ['VS Code proxy / TLS configuration', 'GitHub account / URLs', 'Connection identity', 'Selected session / model', 'Verification evidence', 'VS Code bridge host environment', 'Desktop → VS Code transport'];
+  const sorted = [...groups].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
+  for (const [section, entries] of sorted) {
+    const heading = document.createElement('h3'); heading.textContent = section;
+    const table = document.createElement('table'); const header = document.createElement('tr');
+    for (const text of ['Property', 'Value', 'Evidence / source']) { const th = document.createElement('th'); th.textContent = text; th.scope = 'col'; header.append(th); }
+    const thead = document.createElement('thead'); thead.append(header); table.append(thead);
+    const body = document.createElement('tbody');
+    for (const row of entries) {
+      const tr = document.createElement('tr');
+      for (const text of [row.key, row.value]) { const cell = document.createElement('td'); cell.textContent = text; tr.append(cell); }
+      const evidence = document.createElement('td'); evidence.textContent = row.evidence;
+      if (row.source) { const source = document.createElement('span'); source.className = 'property-source'; source.textContent = row.source; evidence.append(source); }
+      tr.append(evidence); body.append(tr);
+    }
+    table.append(body); content.push(heading, table);
+  }
+  $('properties-content').replaceChildren(...content);
+}
+$('properties').onclick = () => { renderProperties(); $('properties-dialog').showModal(); };
+$('close-properties').onclick = () => $('properties-dialog').close();
+$('refresh-properties').onclick = async () => {
+  $('properties-feedback').textContent = 'Refreshing…'; $('refresh-properties').disabled = true;
+  const response = await window.promptDeck.command('properties');
+  $('properties-feedback').textContent = response.ok ? 'Editor snapshot refreshed. No connection settings changed.' : response.error;
+  renderProperties();
+};

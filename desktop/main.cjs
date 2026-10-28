@@ -16,7 +16,7 @@ else {
     const directory = process.env.PROMPTDECK_DATA_DIR || path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'PromptDeck');
     const log = new Diagnostics(path.join(directory, 'logs'));
     bridge = new BridgeServer({ directory, log }); await bridge.start();
-    controller = new Controller(bridge, log);
+    controller = new Controller(bridge, log, { appVersion: app.getVersion(), electron: process.versions.electron, node: process.versions.node, platform: process.platform, arch: process.arch });
     const assets = new Map(['index.html', 'renderer.js', 'styles.css'].map(name => ['/' + name, path.join(__dirname, 'renderer', name)]));
     protocol.handle('promptdeck', request => {
       const url = new URL(request.url); const file = url.host === 'app' && assets.get(url.pathname);
@@ -45,6 +45,7 @@ else {
           case 'cancel': controller.cancel(args.id); break;
           case 'test': result = await controller.test(args.model); break;
           case 'cancelTest': controller.testAbort?.abort(); break;
+          case 'properties': await controller.refreshProperties(); break;
           case 'connect':
             log.write('Connection requested: use PromptDeck: Connect Desktop in the existing signed-in VS Code profile. No GitHub login is started.');
             await shell.openExternal('vscode://almahari.promptdeck-bridge/connect'); break;
@@ -56,7 +57,7 @@ else {
     });
     controller.on('state', state => { if (!window.isDestroyed()) window.webContents.send('promptdeck:state', state); });
     await window.loadURL('promptdeck://app/index.html');
-    log.write(`Electron ${process.versions.electron} ready. VS Code bridge 0.2.0 required. Log: ${log.logPath}`);
+    log.write(`Electron ${process.versions.electron} ready. VS Code bridge 0.3.0 provides connection properties. Log: ${log.logPath}`);
     app.on('activate', () => window?.show());
   }).catch(error => { console.error(redact(error.message)); app.quit(); });
   app.on('window-all-closed', () => app.quit());

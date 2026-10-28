@@ -3,10 +3,11 @@ const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
 const { redact } = require('./diagnostics.cjs');
 class Controller extends EventEmitter {
-  constructor(bridge, log) {
+  constructor(bridge, log, runtime = {}) {
     super(); this.bridge = bridge; this.log = log; this.sessions = []; this.testing = false;
     this.connection = 'Open the VS Code profile where Copilot already works, then connect the bridge.';
     this.active = new Map(); this.testAbort = null;
+    this.runtime = runtime; this.lastTest = null; this.lastResponse = null;
     for (let i = 0; i < 3; i++) this.newSession();
     bridge.on('connected', () => { this.reconcileModels(); this.connection = `VS Code ${bridge.version} connected — test model access`; this.changed(); });
     bridge.on('disconnected', () => { this.connection = 'VS Code disconnected — reconnect in the editor'; this.changed(); });
@@ -15,7 +16,10 @@ class Controller extends EventEmitter {
   state() {
     return { connected: this.bridge.connected, connection: this.connection, models: this.bridge.models,
       sessions: this.sessions.map(({ remoteInstance, remoteModel, ...s }) => s), testing: this.testing,
-      diagnostics: this.log.lines, logPath: this.log.logPath };
+      diagnostics: this.log.lines, logPath: this.log.logPath,
+      properties: { connected: this.bridge.connected, bridgeInstance: this.bridge.instance, connectedAt: this.bridge.connectedAt,
+        pipePath: this.bridge.pipePath, protocol: 2, desktopPid: process.pid, runtime: this.runtime,
+        editor: this.bridge.connectionInfo, lastTest: this.lastTest, lastResponse: this.lastResponse } };
   }
   changed() { this.emit('state', this.state()); }
   find(id) { const s = this.sessions.find(s => s.id === id); if (!s) throw new Error('Unknown conversation.'); return s; }
@@ -40,6 +44,7 @@ class Controller extends EventEmitter {
     s.model = model; this.changed();
   }
   cancel(id) { this.active.get(id)?.abort(); }
+  async refreshProperties() { await this.bridge.refreshConnectionInfo(); this.changed(); }
   async send(id) {
     const s = this.find(id);
     if (s.busy || this.testing) throw new Error('Wait for this session or the connection test to finish.');
@@ -63,6 +68,7 @@ class Controller extends EventEmitter {
       const response = await this.bridge.request('send', { sessionId: s.id, prompt }, options);
       if (typeof response?.content !== 'string' || !response.content.trim()) throw new Error('VS Code returned no assistant text.');
       s.messages.push({ role: 'assistant', content: response.content }); s.status = 'Response received';
+      this.lastResponse = { at: new Date().toISOString(), model: s.model, sessionId: s.id, bridgeInstance: this.bridge.instance };
       this.log.write(`Response completed: id=${s.id}; ${response.content.length} characters; content omitted.`);
     } catch (error) {
       this.log.failure('Request ' + s.id, error);
@@ -76,6 +82,7 @@ class Controller extends EventEmitter {
     const options = { signal: this.testAbort.signal, timeout: 120000 };
     const stages = ['Local bridge', 'VS Code model access', 'Model discovery', 'Temporary conversation', 'Inference request', 'Exact response'];
     let step = 0, temporary = null;
+    this.lastTest = { status: 'Running', startedAt: new Date().toISOString(), model: selectedModel || '', bridgeInstance: this.bridge.instance };
     this.log.write('Connection test BEGIN. Existing VS Code account only; no GitHub or CLI login.');
     try {
       if (!this.bridge.connected) throw Object.assign(new Error('Run PromptDeck: Connect Desktop in the signed-in VS Code profile.'), { code: 'not_connected' });
@@ -84,6 +91,7 @@ class Controller extends EventEmitter {
       this.log.write('2. VS Code model access: catalog available; inference permission remains unverified.');
       step = 2; this.log.write(`3. Model discovery: PASS (${this.bridge.models.length} models).`);
       const model = selectedModel || this.bridge.models[0].id;
+      this.lastTest.model = model;
       if (!this.bridge.models.some(m => m.id === model)) throw new Error('Selected model unavailable; select another explicitly.');
       step = 3; temporary = 'test-' + randomUUID();
       await this.bridge.request('create', { sessionId: temporary, model }, options);
@@ -93,8 +101,10 @@ class Controller extends EventEmitter {
       step = 5; this.log.write('6. Test response: ' + response?.content);
       if (response?.content?.trim() !== 'Connection successful') throw new Error('Response received but exact-response check failed.');
       this.log.write('6. Exact response: PASS. Connection successful.');
+      this.lastTest = { ...this.lastTest, status: 'Passed', completedAt: new Date().toISOString() };
       this.connection = 'Connected through VS Code — inference verified'; return true;
     } catch (error) {
+      this.lastTest = { ...this.lastTest, status: 'Failed', completedAt: new Date().toISOString(), stage: stages[step], error: redact(error.message) };
       this.log.failure(`${step + 1}. ${stages[step]}`, error);
       for (let i = step + 1; i < stages.length; i++) this.log.write(`${i + 1}. ${stages[i]}: SKIPPED.`);
       this.connection = this.bridge.connected ? 'VS Code connected — test failed; see diagnostics' : 'VS Code bridge not connected'; return false;

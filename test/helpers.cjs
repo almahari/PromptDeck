@@ -29,7 +29,10 @@ function fakeVsCode() {
 }
 async function connectPeer(endpointFile, vscode, capabilityOverride) {
   const endpoint = JSON.parse(await fs.readFile(endpointFile, 'utf8'));
-  const host = createHost(vscode); const models = await host.discover();
+  const connectionInfo = () => Promise.resolve({ capturedAt: new Date().toISOString(), accessToken: 'excluded-test-secret',
+    rows: [{ section: 'VS Code proxy / TLS configuration', key: 'http.proxy', value: 'http://user:password@proxy.example:8080/path?token=hidden-query', evidence: 'Configuration snapshot', source: 'http.proxy (global; source hint)' },
+      { section: 'GitHub account / URLs', key: 'Actual model service request URL', value: 'Not exposed by VS Code', evidence: 'Unavailable', source: 'Language Model API' }] });
+  const host = createHost(vscode, { connectionInfo }); const models = await host.discover();
   const socket = net.createConnection(endpoint.pipePath);
   await once(socket, 'connect');
   const accepted = new Promise(resolve => {
@@ -40,7 +43,7 @@ async function connectPeer(endpointFile, vscode, capabilityOverride) {
   });
   socket.on('error', () => {}); socket.on('close', () => host.clear());
   socket.write(frame({ type: 'hello', protocol: 2, capability: capabilityOverride ?? endpoint.capability,
-    instance: 'test-editor-instance', version: 'test-vscode', models }));
+    instance: 'test-editor-instance', version: 'test-vscode', models, connectionInfo: await connectionInfo() }));
   return { socket, accepted, host };
 }
 async function fixture(t) {

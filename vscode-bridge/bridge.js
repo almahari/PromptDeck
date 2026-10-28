@@ -1,13 +1,13 @@
 'use strict';
 
 // No authentication APIs, credential access, direct GitHub HTTP, or SDK/CLI fallback.
-function createHost(vscode) {
+function createHost(vscode, { connectionInfo } = {}) {
   const sessions = new Map();
   const active = new Map();
   let models = [];
   async function discover() {
     models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-    return models.map(m => ({ id: m.id, name: m.name || m.id }));
+    return models.map(m => ({ id: m.id, name: m.name || m.id, vendor: m.vendor, family: m.family, version: m.version, maxInputTokens: m.maxInputTokens }));
   }
   function model(id) {
     const found = models.find(m => m.id === id);
@@ -28,6 +28,9 @@ function createHost(vscode) {
     try {
       let result;
       switch (method) {
+        case 'connectionInfo':
+          if (!connectionInfo) throw new Error('Connection metadata unavailable. Update the VS Code bridge to 0.3.0.');
+          result = await connectionInfo(); break;
         case 'models': result = await discover(); break;
         case 'create':
           if (typeof args.sessionId !== 'string' || args.sessionId.length > 128 || sessions.has(args.sessionId)) throw new Error('Invalid or duplicate session ID.');
