@@ -8,7 +8,11 @@ const fs = require('node:fs/promises');
   const out = path.resolve(root, option ? option.slice('--out='.length) : 'artifacts/electron');
   if (!out.startsWith(path.join(root, 'artifacts') + path.sep)) throw new Error('Package output must be inside this repository\'s artifacts directory.');
   const vsix = path.join(root, 'artifacts', `promptdeck-bridge-${require('../vscode-bridge/package.json').version}.vsix`);
-  await fs.access(vsix);
+  try { await fs.access(vsix); }
+  catch (error) {
+    if (error.code === 'ENOENT') throw new Error('Companion bridge VSIX is missing. Build it first with: npm run package:bridge');
+    throw error;
+  }
   const outputs = await packager({ dir: root, name: 'PromptDeck', platform: 'win32', arch: 'x64',
     out, overwrite: true, asar: true, prune: true,
     extraResource: [vsix],

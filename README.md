@@ -90,6 +90,10 @@ Tests use real local IPC and fake VS Code model responses, exercising independen
 
 Official references: [VS Code Language Model API](https://code.visualstudio.com/api/extension-guides/ai/language-model), [Electron security](https://www.electronjs.org/docs/latest/tutorial/security), [Electron preload scripts](https://www.electronjs.org/docs/latest/tutorial/tutorial-preload).
 
+## VSIX packaging on a fresh checkout
+
+`npm run package:bridge` creates the ignored `artifacts` directory automatically before running the VSIX packager. If an older checkout fails with `ENOENT ... artifacts\promptdeck-bridge-0.3.0.vsix`, run `git pull` and retry. As an immediate workaround from the repository root, run `New-Item -ItemType Directory -Force artifacts`, then `npm run package:bridge`. This is a local output-folder issue, unrelated to GitHub authentication, corporate proxy access, or Copilot entitlement.
+
 ## Local connection error after an upgrade
 
 If the desktop is open but VS Code reports **PromptDeck local connection failed** with `ENOENT`, check the bridge version in VS Code's Extensions view. Bridge **0.1.0** looks for the retired WPF pipe and cannot connect to Electron's protocol-2 endpoint. Install the bundled `promptdeck-bridge-0.3.0.vsix`, run **Developer: Reload Window** in that VS Code window (or use its Restart Extensions action), and then **PromptDeck: Connect Desktop**. Each already-open VS Code window may need reloading to stop using old extension code. This does not require a new GitHub login.

@@ -1,5 +1,11 @@
 # Electron verification — 2026-10-28
 
+## Fresh-checkout VSIX packaging fix
+
+Reproduced the work-PC screenshot's `ENOENT` using the real VSIX packager in a temporary checkout without `artifacts`. The former extension npm script wrote directly into the missing parent folder. A regression test failed with the same error before the fix.
+
+The extension packaging script now invokes `scripts/package-bridge.cjs`, which creates the output directory recursively and derives the VSIX name from the extension manifest. The same real-packager regression then passes on a fresh temporary checkout. Windows packaging now reports an actionable `npm run package:bridge` instruction if its companion VSIX is absent, instead of a raw file error. This change does not alter authentication, extension runtime behavior, or corporate network settings.
+
 ## Live connection recovery — 16:32 local time
 
 The user-reported local connection failure was reproduced with the installed **bridge 0.1.0** and the running Electron **0.3.0** app. A minimal read-only connection probe returned `ENOENT` for the legacy deterministic pipe. A separate probe connected successfully to the desktop's registered protocol-2 pipe without sending credentials or a model request. This distinguished the version mismatch from a closed desktop app or a GitHub/network authentication failure.
