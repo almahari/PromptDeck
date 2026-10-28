@@ -1,5 +1,24 @@
 # Electron verification — 2026-10-28
 
+## Live connection recovery — 16:32 local time
+
+The user-reported local connection failure was reproduced with the installed **bridge 0.1.0** and the running Electron **0.3.0** app. A minimal read-only connection probe returned `ENOENT` for the legacy deterministic pipe. A separate probe connected successfully to the desktop's registered protocol-2 pipe without sending credentials or a model request. This distinguished the version mismatch from a closed desktop app or a GitHub/network authentication failure.
+
+Installed the existing bridge 0.3.0 VSIX through the official VS Code CLI, reloaded the intended VS Code window, and ran **PromptDeck: Connect Desktop**. The actual desktop log then recorded:
+
+```text
+16:32:13 VS Code connected: version=1.142.0; models=7.
+16:32:58 1. Local bridge: PASS (authenticated local named-pipe connection).
+16:32:58 3. Model discovery: PASS (7 models).
+16:32:58 4. Temporary conversation: PASS; model=gpt-4o-mini.
+16:32:59 5. Inference request: PASS (existing VS Code model access verified for this request).
+16:32:59 6. Test response: Connection successful
+16:32:59 6. Exact response: PASS. Connection successful.
+16:32:59 7. Temporary conversation cleanup: PASS.
+```
+
+**Live inference through the current Electron/VS Code bridge is now verified for this model and existing editor account.** No new GitHub/CLI authentication, token export, proxy change, or policy modification was performed. The user's draft was preserved. The active provider account and resolved remote URL/proxy remain outside the Language Model API's observable metadata; this successful response does not prove a particular network route or corporate identity. Concurrent live provider responses and other models remain unverified. Earlier statements below about pending live verification describe the earlier test state.
+
 ## Connection properties update (0.3.0)
 
 The new read-only **Connection properties** panel displays editor-provided proxy/TLS settings, sanitized proxy environment addresses, available GitHub account labels, provider/configured enterprise URL origins, editor/extension/host identity, model metadata, snapshot time, and connection-test evidence. The actual inference URL, selected Copilot account and resolved proxy/PAC route are explicitly unavailable through the public Language Model API. The panel does not equate configuration with an observed route.

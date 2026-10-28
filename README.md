@@ -89,3 +89,9 @@ Tests use real local IPC and fake VS Code model responses, exercising independen
 `PROMPTDECK_DATA_DIR` can select an isolated local app/profile directory for automated checks; the VS Code extension intentionally looks only in the normal user profile. No credential values are needed for tests. Generated executables, screenshots, logs, endpoint files, node_modules, and VSIX files are excluded from Git.
 
 Official references: [VS Code Language Model API](https://code.visualstudio.com/api/extension-guides/ai/language-model), [Electron security](https://www.electronjs.org/docs/latest/tutorial/security), [Electron preload scripts](https://www.electronjs.org/docs/latest/tutorial/tutorial-preload).
+
+## Local connection error after an upgrade
+
+If the desktop is open but VS Code reports **PromptDeck local connection failed** with `ENOENT`, check the bridge version in VS Code's Extensions view. Bridge **0.1.0** looks for the retired WPF pipe and cannot connect to Electron's protocol-2 endpoint. Install the bundled `promptdeck-bridge-0.3.0.vsix`, run **Developer: Reload Window** in that VS Code window (or use its Restart Extensions action), and then **PromptDeck: Connect Desktop**. Each already-open VS Code window may need reloading to stop using old extension code. This does not require a new GitHub login.
+
+On 2026-10-28 this exact version mismatch was reproduced and resolved locally: the old pipe returned `ENOENT`, the current registered desktop pipe was reachable, and after updating/reloading the bridge, the existing VS Code account returned exactly `Connection successful` in the desktop test. Other `ENOENT` cases can indicate a stale endpoint or a closed app; restart PromptDeck and reconnect rather than changing authentication or proxy settings.
