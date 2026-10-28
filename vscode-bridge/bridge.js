@@ -1,7 +1,7 @@
 'use strict';
 
 // No authentication APIs, credential access, direct GitHub HTTP, or SDK/CLI fallback.
-function createHost(vscode, { connectionInfo } = {}) {
+function createHost(vscode, { connectionInfo, invokeTool } = {}) {
   const sessions = new Map();
   const active = new Map();
   let models = [];
@@ -36,7 +36,8 @@ function createHost(vscode, { connectionInfo } = {}) {
           if (typeof args.sessionId !== 'string' || args.sessionId.length > 128 || sessions.has(args.sessionId)) throw new Error('Invalid or duplicate session ID.');
           if (sessions.size >= 100) throw new Error('Prototype session limit reached. Restart the bridge to clear its in-memory conversations.');
           model(args.model);
-          sessions.set(args.sessionId, { model: args.model, messages: [], characters: 0, busy: false });
+          if (args.mode === 'agent' && (!invokeTool || typeof args.workspace !== 'string')) throw new Error('Update PromptDeck bridge to enable workspace agents.');
+          sessions.set(args.sessionId, { model: args.model, mode: args.mode, workspace: args.workspace, messages: [], characters: 0, busy: false });
           result = { sessionId: args.sessionId }; break;
         case 'model': {
           const s = session(args.sessionId);
@@ -58,6 +59,12 @@ function createHost(vscode, { connectionInfo } = {}) {
           s.busy = true;
           s.cancellation = cancellation;
           try {
+            if (s.mode === 'agent') {
+              const turn = await require('./agent').agentTurn(vscode, model(s.model), s.messages, args.prompt, s.workspace, cancellation.token,
+                (name, input, token) => invokeTool({ requestId: id, sessionId: args.sessionId, name, input }, token));
+              if (cancellation.token.isCancellationRequested) throw new Error('Request cancelled.');
+              s.messages = turn.messages; s.characters = turn.characters; result = { content: turn.content }; break;
+            }
             const prompt = vscode.LanguageModelChatMessage.User(args.prompt);
             const response = await model(s.model).sendRequest([...s.messages, prompt], {}, cancellation.token);
             let content = '';

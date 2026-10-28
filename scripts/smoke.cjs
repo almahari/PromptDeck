@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const os = require('node:os');
+const { git } = require('../desktop/repositories.cjs');
 const { _electron: electron } = require('playwright');
 const { connectPeer, fakeVsCode } = require('../test/helpers.cjs');
 (async () => {
@@ -44,8 +45,38 @@ const { connectPeer, fakeVsCode } = require('../test/helpers.cjs');
     await fs.mkdir(path.join(root, 'artifacts'), { recursive: true });
     await page.screenshot({ path: path.join(root, 'artifacts', packaged ? 'connection-properties-packaged.png' : 'connection-properties.png') });
     await page.locator('#close-properties').click();
+    const repoRoots = [path.join(directory, 'First project'), path.join(directory, 'Second project')];
+    for (const folder of repoRoots) {
+      await fs.mkdir(folder); await git(folder, ['init', '-b', 'existing-feature']);
+      await fs.writeFile(path.join(folder, 'README.md'), 'Test project'); await git(folder, ['add', '.']);
+      await git(folder, ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'initial']);
+    }
+    // Exercise the actual native-picker command with deterministic selections.
+    await app.evaluate(({ dialog }, roots) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: roots }); }, repoRoots);
+    await page.locator('#add-project').click(); await page.waitForFunction(() => document.querySelectorAll('.project').length === 2);
+    assert.equal(await page.locator('.worktree').count(), 2);
+    assert.ok((await page.locator('.worktree').first().innerText()).includes('existing-feature · Current checkout'));
+    await page.getByRole('button', { name: 'Create worktree in First project', exact: true }).click();
+    await page.locator('#worktree-name').fill('feature/ui-test'); await page.locator('#create-worktree').click();
+    await page.waitForFunction(() => !document.getElementById('worktree-dialog').open);
+    assert.equal(await page.locator('.worktree').count(), 3);
+    assert.equal(await page.locator('#session-title').innerText(), 'feature/ui-test');
+    await app.evaluate(({ shell }) => { shell.openExternal = async url => { globalThis.lastOpenedUrl = url; }; });
+    await page.locator('#open-vscode').click();
+    await page.waitForTimeout(100);
+    const opened = await app.evaluate(() => globalThis.lastOpenedUrl);
+    assert.ok(opened.startsWith('vscode://file/')); assert.ok(decodeURI(opened).includes('.promptdeck/worktrees/feature-ui-test'));
+    await page.locator('#message').fill('Implement the test feature'); await page.locator('#send').click();
+    await page.locator('#edit-dialog[open]').waitFor();
+    assert.equal(await page.locator('#edit-after').innerText(), 'Implement the test feature');
+    await page.locator('#apply-edit').click();
+    await page.waitForFunction(() => document.getElementById('session-status').textContent === 'Response received');
+    const projects = JSON.parse(await fs.readFile(path.join(directory, 'projects.json'), 'utf8')); assert.equal(projects.length, 2);
+    const first = (await git(repoRoots[0], ['worktree', 'list', '--porcelain', '-z'])).split('\0').filter(x => x.startsWith('worktree ')).map(x => x.slice(9));
+    assert.equal(await fs.readFile(path.join(first[1], 'feature.txt'), 'utf8'), 'Implement the test feature');
+    await assert.rejects(fs.access(path.join(repoRoots[0], 'feature.txt')));
     await page.screenshot({ path: path.join(root, 'artifacts', packaged ? 'electron-packaged-smoke.png' : 'electron-smoke.png') });
-    console.log('PASS: ' + (packaged ? 'packaged Windows executable' : 'actual Electron window') + ', three sessions, isolated drafts, renderer sandbox, literal model output, and connection-test UI using fake VS Code models.');
+    console.log('PASS: ' + (packaged ? 'packaged Windows executable' : 'actual Electron window') + ', chat isolation, renderer sandbox, connection properties, multiple projects, real Git worktree creation, VS Code folder URI, and approved agent edit using fake VS Code models.');
   } finally {
     peer?.socket.destroy(); if (app) await app.close();
     if (path.dirname(path.resolve(directory)) !== path.resolve(os.tmpdir()) || !path.basename(directory).startsWith('promptdeck-smoke-')) throw new Error('Unsafe smoke cleanup path.');

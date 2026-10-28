@@ -12,7 +12,7 @@ test('bridge packaging succeeds on a fresh checkout without an artifacts directo
   const extension = path.join(temporary, 'vscode-bridge');
   try {
     await fs.mkdir(extension);
-    for (const name of ['package.json', '.vscodeignore', 'bridge.js', 'connection-info.js', 'extension.js', 'protocol.js', 'README.md'])
+    for (const name of ['package.json', '.vscodeignore', 'bridge.js', 'agent.js', 'connection-info.js', 'extension.js', 'protocol.js', 'README.md'])
       await fs.copyFile(path.join(root, 'vscode-bridge', name), path.join(extension, name));
     await fs.symlink(path.join(root, 'vscode-bridge', 'node_modules'), path.join(extension, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     // Run exactly the extension's npm entry point, with its real VSIX packager.

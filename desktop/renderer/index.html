@@ -14,15 +14,21 @@
     <button id="properties" class="properties-button">Connection properties</button>
     <div class="connection" role="status" aria-live="polite"><span id="dot" aria-hidden="true"></span><span id="connection">Starting…</span></div>
     <p class="hint">Keep VS Code open. In its Command Palette, run <strong>PromptDeck: Connect Desktop</strong>.</p>
-    <div class="session-heading"><h2>Sessions</h2><button id="new-session" aria-label="New session">+ New</button></div>
-    <nav id="sessions" aria-label="Chat sessions"></nav>
+    <div class="sidebar-scroll">
+      <div class="session-heading"><h2>Projects</h2><button id="add-project">+ Add</button></div>
+      <button id="refresh-projects" class="small">Refresh worktrees</button>
+      <nav id="projects" aria-label="Projects and worktrees"></nav>
+      <div class="session-heading"><h2>Chat sessions</h2><button id="new-session" aria-label="New session">+ New</button></div>
+      <nav id="sessions" aria-label="Chat sessions"></nav>
+    </div>
     <div class="sidebar-footer">No separate GitHub login.<br>No OpenAI API key.</div>
   </aside>
   <main>
-    <header><div><h2 id="session-title">Session 1</h2><p id="session-id" class="mono"></p></div><div class="model-field"><label for="model">Model</label><select id="model"><option value="">Connect to discover models</option></select></div></header>
+    <header><div class="workspace-heading"><h2 id="session-title">Session 1</h2><p id="workspace-path" class="mono" hidden></p><p id="session-id" class="mono"></p><button id="open-vscode" class="small" hidden>Open folder in VS Code</button></div><div class="model-field"><label for="model">Model</label><select id="model"><option value="">Connect to discover models</option></select></div></header>
     <section id="conversation" aria-label="Conversation" aria-live="polite"><p class="empty">Connect VS Code, choose a model, and start a conversation.</p></section>
     <section class="compose">
       <div id="session-status" role="status" aria-live="polite">Ready</div>
+      <div id="agent-activity" class="hint" aria-live="polite" hidden></div>
       <label for="message">Message <span class="hint">Ctrl+Enter to send</span></label>
       <textarea id="message" maxlength="100000" rows="3" placeholder="Ask Copilot…"></textarea>
       <div class="actions"><button id="send" class="primary">Send</button><button id="cancel" disabled>Cancel request</button><span id="loading" hidden>Working…</span><span id="error" role="alert"></span></div>
@@ -32,6 +38,18 @@
       <pre id="diagnostics" tabindex="0" aria-label="Diagnostic log"></pre>
     </section>
   </main>
+  <dialog id="worktree-dialog" aria-labelledby="worktree-title" class="compact-dialog">
+    <h2 id="worktree-title">Create worktree</h2>
+    <p id="worktree-project"></p>
+    <p class="hint">Creates a new branch from this project's current HEAD in .promptdeck/worktrees/. Uncommitted changes stay in the current checkout.</p>
+    <form id="worktree-form"><label for="worktree-name">Branch name (required)</label><input id="worktree-name" required maxlength="80" placeholder="feature/my-feature" autocomplete="off" aria-describedby="worktree-error"><p id="worktree-error" role="alert"></p><div class="actions"><button id="create-worktree" class="primary" type="submit">Create worktree</button><button id="close-worktree" type="button">Cancel</button></div></form>
+  </dialog>
+  <dialog id="edit-dialog" aria-labelledby="edit-title">
+    <h2 id="edit-title">Review agent edit</h2><p id="edit-path" class="mono"></p>
+    <p class="hint">Only this file will be changed. Review the complete current and proposed contents.</p>
+    <div class="edit-columns"><section><h3>Current file</h3><pre id="edit-before" tabindex="0"></pre></section><section><h3>Proposed file</h3><pre id="edit-after" tabindex="0"></pre></section></div>
+    <div class="actions"><button id="apply-edit" class="primary">Apply edit</button><button id="reject-edit">Reject edit</button></div>
+  </dialog>
   <dialog id="properties-dialog" aria-labelledby="properties-title">
     <div class="properties-heading"><h2 id="properties-title">GitHub / VS Code connection properties</h2><button id="close-properties" aria-label="Close connection properties">Close</button></div>
     <p id="properties-status" role="status"></p>

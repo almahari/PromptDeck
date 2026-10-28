@@ -2,21 +2,43 @@
   "name": "promptdeck-bridge",
   "displayName": "PromptDeck VS Code Bridge",
   "description": "Use the existing VS Code Copilot account from the local PromptDeck desktop prototype.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "almahari",
   "license": "UNLICENSED",
-  "repository": { "type": "git", "url": "https://github.com/almahari/PromptDeck.git" },
-  "engines": { "vscode": "^1.95.0" },
-  "categories": ["Other"],
-  "extensionKind": ["ui"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almahari/PromptDeck.git"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
   "main": "./extension.js",
-  "activationEvents": ["onUri"],
+  "activationEvents": [
+    "onUri"
+  ],
   "contributes": {
     "commands": [
-      { "command": "promptdeck.connect", "title": "PromptDeck: Connect Desktop" },
-      { "command": "promptdeck.disconnect", "title": "PromptDeck: Disconnect Desktop" }
+      {
+        "command": "promptdeck.connect",
+        "title": "PromptDeck: Connect Desktop"
+      },
+      {
+        "command": "promptdeck.disconnect",
+        "title": "PromptDeck: Disconnect Desktop"
+      }
     ]
   },
-  "scripts": { "test": "node --test test/*.test.js", "package": "node ../scripts/package-bridge.cjs" },
-  "devDependencies": { "@vscode/vsce": "^3.7.0" }
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "package": "node ../scripts/package-bridge.cjs"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.7.0"
+  }
 }

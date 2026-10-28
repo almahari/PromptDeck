@@ -16,7 +16,7 @@ const fs = require('node:fs/promises');
   const outputs = await packager({ dir: root, name: 'PromptDeck', platform: 'win32', arch: 'x64',
     out, overwrite: true, asar: true, prune: true,
     extraResource: [vsix],
-    ignore: [/^\/artifacts(?:\/|$)/, /^\/\.git(?:\/|$)/, /^\/\.research(?:\/|$)/,
+    ignore: [/^\/artifacts(?:\/|$)/, /^\/\.git(?:\/|$)/, /^\/\.research(?:\/|$)/, /^\/\.promptdeck(?:\/|$)/,
       /^\/test(?:\/|$)/, /^\/scripts(?:\/|$)/, /^\/PromptDeck(?:\/|$)/, /^\/vscode-bridge\/node_modules(?:\/|$)/,
       /^\/vscode-bridge\/test(?:\/|$)/, /^\/vscode-bridge\/package-lock.json$/] });
   console.log('Packaged Windows app: ' + outputs.join(', '));

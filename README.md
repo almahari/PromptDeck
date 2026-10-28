@@ -1,22 +1,22 @@
 # PromptDeck
 
-A minimal **Node.js + Electron** desktop app for Windows that uses the Copilot account **already signed in to VS Code**. Three independent conversations, per-session model selection, concurrent requests, cancellation, and a diagnostic connection test are included.
+A minimal **Node.js + Electron** desktop app for Windows that uses the Copilot account **already signed in to VS Code**. Add multiple local repositories, create Git worktrees, and ask an agent to implement features in a selected worktree. Independent conversations, model selection, concurrent requests, cancellation, and connection diagnostics are included.
 
 The companion extension calls VS Code's documented Language Model API. GitHub credentials stay in VS Code. PromptDeck does not start a GitHub/CLI login, require an OpenAI key, copy tokens, or fall back to another provider. This replaces the earlier C#/.NET implementation; .NET and the standalone Copilot SDK are no longer required.
 
 ## Run from source
 
-Requirements: Windows 10/11, Node.js **22+**, npm, and VS Code with Copilot already working in the intended profile. Your organization must permit the companion extension and its normal model-access consent.
+Requirements: Windows 10/11, Node.js **22+**, npm, Git for Windows on PATH, and VS Code with Copilot already working in the intended profile. Your organization must permit the companion extension and its normal model-access consent.
 
 ```powershell
 npm ci
 npm --prefix vscode-bridge ci
 npm run package:bridge
-code --install-extension artifacts/promptdeck-bridge-0.3.0.vsix
+code --install-extension artifacts/promptdeck-bridge-0.4.0.vsix
 npm start
 ```
 
-Reload the VS Code window after installing bridge **0.3.0** to enable connection-property snapshots. The Electron local IPC protocol remains version 2; older bridge versions can chat but cannot provide the new properties. Close the old WPF window to avoid confusing the two applications; its source and dependencies are removed from this repository.
+Reload the VS Code window after installing bridge **0.4.0**, then reconnect to enable worktree agents. The Electron local IPC protocol remains version 2; older bridges can still chat but do not support worktree agents. Close the old WPF window to avoid confusing the two applications; its source and dependencies are removed from this repository.
 
 ## Connect the existing VS Code account
 
@@ -29,6 +29,23 @@ Reload the VS Code window after installing bridge **0.3.0** to enable connection
 
 The app reuses VS Code's **account/model access**, not the contents of an existing editor chat. PromptDeck conversations are separate and held in memory. The desktop does not invoke `authentication.getSession`, access token properties, private GitHub endpoints, or the Copilot CLI.
 
+## Projects, worktrees, and agents
+
+1. Click **+ Add** beside Projects and select one or more local Git repository folders. Existing worktrees appear under each project. Selecting another checkout of the same repository does not add a duplicate project.
+2. The selected repository's current checkout is the default worktree, labelled with its actual branch name. No branch switch is performed. Detached HEAD checkouts show their commit instead.
+3. Click **+** beside a project and enter a new branch name, such as `feature/my-feature`. Git creates that branch from the project's current committed HEAD at `<project>/.promptdeck/worktrees/<branch-slug>-<hash>/`. Uncommitted changes stay in the current checkout. The container is excluded through local Git `info/exclude`; tracked `.gitignore` is unchanged. Existing branches and invalid names produce errors; nothing is forced or deleted. An initial commit is required to create another worktree.
+4. Select a worktree, choose a model, and describe the feature. Each worktree has a separate agent conversation, draft, ID, and model. Different worktrees can run concurrently, subject to provider limits.
+5. Review each proposed file edit in **Current file / Proposed file**, then **Apply edit** or **Reject edit**. Applied edits remain in the selected worktree for normal Git review. Cancel dismisses pending reviews; it does not roll back edits already applied.
+6. **Open folder in VS Code** opens the selected worktree. **Refresh worktrees** updates branches and worktrees created outside the app.
+
+This is PromptDeck's own small agent loop over the [public VS Code tool-calling API](https://code.visualstudio.com/api/extension-guides/ai/tools), using the same existing Copilot model access. It does not control VS Code's built-in Agent chat. Tools can list files, search text, read UTF-8 files, and propose file writes. File paths are relative to the selected worktree. Parent traversal, symlink/junction traversal, Git metadata, `.promptdeck`, `node_modules`, `.env*`, and key/certificate extensions are excluded. File hashes are checked before and after review to prevent overwriting an intervening edit. This prototype is not an OS sandbox against another local process racing filesystem changes.
+
+There is no shell-command tool, automatic test execution, commit, push, file deletion, or merge action. Open the folder in VS Code to run project checks and manage Git. Models must support tool calling; unsupported model/provider errors are displayed without fallback. Agent operations time out after 10 minutes and are bounded to 12 model rounds / 24 tool calls per turn. Text-file tools support at most 100 KB per file, with bounded listing/search results and context. A failed turn may already have user-approved edits on disk; review them before retrying.
+
+Selected project paths persist in `%LOCALAPPDATA%\PromptDeck\projects.json`. Restarting the app clears conversations; Git worktrees and applied changes remain on disk. After an extension restart, restart PromptDeck to get new worktree conversations. Worktree removal, branch merge, and conversation persistence are outside this prototype.
+
+Official references: [Git worktree](https://git-scm.com/docs/git-worktree), [VS Code folder URLs](https://code.visualstudio.com/docs/configure/command-line#_opening-vs-code-with-urls).
+
 ## Build the Windows executable
 
 ```powershell
@@ -40,7 +57,7 @@ npm run package:win
 
 Launch `artifacts/electron/PromptDeck-win32-x64/PromptDeck.exe`. Keep the entire generated folder together. It includes Electron/Node and the companion VSIX in its `resources` directory; end users do not need .NET or a separate Node installation. Install that VSIX into the signed-in VS Code profile with **Extensions: Install from VSIX**. This is an unsigned local prototype, not an installer or Marketplace publication.
 
-Close an older packaged app before rebuilding its output directory. If Windows still holds the old files open, choose a fresh folder with `node scripts/package.cjs --out=artifacts/connection-properties`. The current 0.3.0 verification build is in `artifacts/connection-properties/PromptDeck-win32-x64/`.
+Close an older packaged app before rebuilding its output directory. If Windows still holds the old files open, choose a fresh folder with `node scripts/package.cjs --out=artifacts/projects-worktrees-final`. The current 0.4.0 verification build is in `artifacts/projects-worktrees-final/PromptDeck-win32-x64/`.
 
 The app uses Electron **45.1.0** and Node's built-in modules. Its renderer is sandboxed with context isolation, no Node integration, a restrictive Content Security Policy, and a small validated preload API. Model output is rendered as plain text rather than executable HTML. Only bundled local UI files are loaded.
 
@@ -52,7 +69,7 @@ The app uses Electron **45.1.0** and Node's built-in modules. Its renderer is sa
 - A model change retains that session's context. If a model disappears, the app asks for an explicit selection rather than falling back.
 - Disconnections fail pending work without replaying it. Reloading/stopping the VS Code extension clears its in-memory histories; old desktop conversation handles are rejected. Create a new session after a bridge restart.
 - **PromptDeck: Disconnect Desktop** in VS Code cancels work and disconnects. Closing the Electron app removes its registered local endpoint and discards desktop history. No app-level conversation restore is implemented.
-- Prototype limits: 100 conversations, 100,000 characters per prompt, and bounded conversation/response/message sizes. Tools and attachments are not exposed.
+- Prototype limits: 100 conversations, 100,000 characters per prompt, and bounded conversation/response/message sizes. General chat sessions do not have file tools. Attachments are not exposed.
 
 ## Connection test and diagnostics
 
@@ -92,10 +109,10 @@ Official references: [VS Code Language Model API](https://code.visualstudio.com/
 
 ## VSIX packaging on a fresh checkout
 
-`npm run package:bridge` creates the ignored `artifacts` directory automatically before running the VSIX packager. If an older checkout fails with `ENOENT ... artifacts\promptdeck-bridge-0.3.0.vsix`, run `git pull` and retry. As an immediate workaround from the repository root, run `New-Item -ItemType Directory -Force artifacts`, then `npm run package:bridge`. This is a local output-folder issue, unrelated to GitHub authentication, corporate proxy access, or Copilot entitlement.
+`npm run package:bridge` creates the ignored `artifacts` directory automatically before running the VSIX packager. If an older checkout fails with `ENOENT ... artifacts\promptdeck-bridge-0.4.0.vsix`, run `git pull` and retry. As an immediate workaround from the repository root, run `New-Item -ItemType Directory -Force artifacts`, then `npm run package:bridge`. This is a local output-folder issue, unrelated to GitHub authentication, corporate proxy access, or Copilot entitlement.
 
 ## Local connection error after an upgrade
 
-If the desktop is open but VS Code reports **PromptDeck local connection failed** with `ENOENT`, check the bridge version in VS Code's Extensions view. Bridge **0.1.0** looks for the retired WPF pipe and cannot connect to Electron's protocol-2 endpoint. Install the bundled `promptdeck-bridge-0.3.0.vsix`, run **Developer: Reload Window** in that VS Code window (or use its Restart Extensions action), and then **PromptDeck: Connect Desktop**. Each already-open VS Code window may need reloading to stop using old extension code. This does not require a new GitHub login.
+If the desktop is open but VS Code reports **PromptDeck local connection failed** with `ENOENT`, check the bridge version in VS Code's Extensions view. Bridge **0.1.0** looks for the retired WPF pipe and cannot connect to Electron's protocol-2 endpoint. Install the bundled `promptdeck-bridge-0.4.0.vsix`, run **Developer: Reload Window** in that VS Code window (or use its Restart Extensions action), and then **PromptDeck: Connect Desktop**. Each already-open VS Code window may need reloading to stop using old extension code. This does not require a new GitHub login.
 
 On 2026-10-28 this exact version mismatch was reproduced and resolved locally: the old pipe returned `ENOENT`, the current registered desktop pipe was reachable, and after updating/reloading the bridge, the existing VS Code account returned exactly `Connection successful` in the desktop test. Other `ENOENT` cases can indicate a stale endpoint or a closed app; restart PromptDeck and reconnect rather than changing authentication or proxy settings.

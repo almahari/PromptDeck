@@ -11,6 +11,13 @@ button:disabled { opacity:.5; cursor:default; } :focus-visible { outline:3px sol
 .session-heading,.diagnostic-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }.session-heading button { padding:5px 10px; }
 #sessions { overflow:auto; margin-top:12px; flex:1; } #sessions button { text-align:left; width:100%; margin:0 0 6px; border-color:transparent; background:transparent; display:flex; justify-content:space-between; } #sessions button[aria-current="true"] { background:white; border-color:#bac9dd; color:#194caa; font-weight:600; } .busy-mark { font-size:11px; font-weight:400; color:#536176; }
 .sidebar-footer { padding-top:14px; font-size:12px; color:#536176; border-top:1px solid #ced6e0; }
+.sidebar-scroll { overflow:auto; flex:1; min-height:0; margin-bottom:12px; }
+.small { padding:5px 9px; min-height:30px; font-size:12px; }#refresh-projects { margin-top:8px; }
+.project { margin:10px 0 20px; }.project h3 { font-size:14px; overflow-wrap:anywhere; margin:6px 0; }.project .session-heading button { padding:2px 10px; min-height:30px; }
+.worktree { display:block; width:100%; text-align:left; margin-top:5px; padding:8px; font-size:12px; overflow-wrap:anywhere; border-color:transparent; background:transparent; }.worktree[aria-current="true"] { background:white; border-color:#bac9dd; color:#194caa; }
+.workspace-heading { min-width:0; }.workspace-heading .mono { overflow-wrap:anywhere; }#open-vscode { margin-top:8px; }
+.compact-dialog { max-width:520px; }input { width:100%; padding:9px; border:1px solid #aebbc9; border-radius:5px; font:inherit; }#worktree-error { color:#902f32; white-space:pre-wrap; }
+.edit-columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; }.edit-columns section { min-width:0; }.edit-columns h3 { font-size:13px; }.edit-columns pre { background:#f7f9fc; border:1px solid #dce2e9; padding:10px; font:12px/1.5 Consolas,monospace; overflow:auto; max-height:45vh; white-space:pre-wrap; overflow-wrap:anywhere; }#agent-activity { max-height:50px; overflow:auto; margin-bottom:8px; }
 main { min-width:0; min-height:0; display:grid; grid-template-rows:auto minmax(100px,1fr) auto minmax(140px,23vh); background:white; }
 header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:22px 26px 18px; border-bottom:1px solid #dce2e9; }.mono { font:11px Consolas,monospace; color:#607087; margin:4px 0 0; }
 .model-field { min-width:190px; max-width:330px; width:40%; }label { display:block; font-size:13px; font-weight:600; margin-bottom:5px; }select { width:100%; padding:8px; border:1px solid #aebbc9; border-radius:5px; background:white; color:#243247; }

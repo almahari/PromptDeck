@@ -1,11 +1,12 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, shell, session, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, protocol, net, dialog } = require('electron');
 const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { BridgeServer } = require('./bridge-server.cjs');
 const { Diagnostics, redact } = require('./diagnostics.cjs');
 const { Controller } = require('./controller.cjs');
+const { Repositories } = require('./repositories.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'promptdeck', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 let window, bridge, controller, stopping = false;
 if (process.env.PROMPTDECK_DATA_DIR) app.setPath('userData', path.join(process.env.PROMPTDECK_DATA_DIR, 'electron-profile'));
@@ -16,7 +17,9 @@ else {
     const directory = process.env.PROMPTDECK_DATA_DIR || path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'PromptDeck');
     const log = new Diagnostics(path.join(directory, 'logs'));
     bridge = new BridgeServer({ directory, log }); await bridge.start();
-    controller = new Controller(bridge, log, { appVersion: app.getVersion(), electron: process.versions.electron, node: process.versions.node, platform: process.platform, arch: process.arch });
+    const repositories = new Repositories(directory);
+    try { await repositories.load(); } catch (e) { log.failure('Load projects', e); }
+    controller = new Controller(bridge, log, { appVersion: app.getVersion(), electron: process.versions.electron, node: process.versions.node, platform: process.platform, arch: process.arch }, repositories);
     const assets = new Map(['index.html', 'renderer.js', 'styles.css'].map(name => ['/' + name, path.join(__dirname, 'renderer', name)]));
     protocol.handle('promptdeck', request => {
       const url = new URL(request.url); const file = url.host === 'app' && assets.get(url.pathname);
@@ -39,6 +42,22 @@ else {
         switch (command) {
           case 'state': result = controller.state(); break;
           case 'new': result = controller.newSession(); break;
+          case 'project.add': {
+            const picked = await dialog.showOpenDialog(window, { title: 'Select Git repositories', properties: ['openDirectory', 'multiSelections'] });
+            if (!picked.canceled) {
+              const failures = [];
+              for (const folder of picked.filePaths) try { result = await controller.addProject(folder); } catch (e) { failures.push(e.message); }
+              if (failures.length) throw new Error(failures.join('\n'));
+            }
+            break;
+          }
+          case 'project.refresh': await controller.refreshProjects(); break;
+          case 'worktree.create': result = await controller.createWorktree(args.projectId, args.name); break;
+          case 'worktree.open': {
+            const worktree = await repositories.worktree(args.worktreeId);
+            await shell.openExternal('vscode://file' + pathToFileURL(worktree.root).pathname + '/'); break;
+          }
+          case 'approval': controller.approve(args.id, args.accepted); break;
           case 'draft': controller.setDraft(args.id, args.text); break;
           case 'model': controller.setModel(args.id, args.model); break;
           case 'send': await controller.send(args.id); break;
@@ -57,7 +76,7 @@ else {
     });
     controller.on('state', state => { if (!window.isDestroyed()) window.webContents.send('promptdeck:state', state); });
     await window.loadURL('promptdeck://app/index.html');
-    log.write(`Electron ${process.versions.electron} ready. VS Code bridge 0.3.0 provides connection properties. Log: ${log.logPath}`);
+    log.write(`Electron ${process.versions.electron} ready. Worktree agents require VS Code bridge 0.4.0. Log: ${log.logPath}`);
     app.on('activate', () => window?.show());
   }).catch(error => { console.error(redact(error.message)); app.quit(); });
   app.on('window-all-closed', () => app.quit());

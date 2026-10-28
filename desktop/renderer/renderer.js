@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let state, selected, sessionsKey = '', modelsKey = '', messagesKey = '';
+let state, selected, sessionsKey = '', modelsKey = '', messagesKey = '', projectsKey = '', creatingProject, approvalId;
 async function command(name, args) {
   const response = await window.promptDeck.command(name, args);
   if (!response.ok) { $('error').textContent = response.error; return; }
@@ -13,14 +13,43 @@ function render(next) {
   const current = state.sessions.find(s => s.id === selected); if (!current) return;
   const key = JSON.stringify(state.sessions.map(s => [s.id, s.title, s.busy])) + selected;
   if (key !== sessionsKey) {
-    sessionsKey = key; $('sessions').replaceChildren(...state.sessions.map(s => {
+    sessionsKey = key; $('sessions').replaceChildren(...state.sessions.filter(s => !s.worktreeId).map(s => {
       const button = document.createElement('button'); button.textContent = s.title; button.dataset.session = s.id;
       button.setAttribute('aria-current', String(s.id === selected));
       if (s.busy) { const label = document.createElement('span'); label.className = 'busy-mark'; label.textContent = 'Working'; button.append(label); }
       button.onclick = () => { selected = s.id; messagesKey = ''; render(state); $('message').focus(); }; return button;
     }));
   }
+  const projectKey = JSON.stringify(state.projects) + key;
+  if (projectKey !== projectsKey) {
+    projectsKey = projectKey;
+    const projects = (state.projects || []).map(p => {
+      const group = document.createElement('section'); group.className = 'project';
+      const heading = document.createElement('div'); heading.className = 'session-heading';
+      const title = document.createElement('h3'); title.textContent = p.name; title.title = p.root;
+      const add = document.createElement('button'); add.textContent = '+'; add.setAttribute('aria-label', 'Create worktree in ' + p.name); add.disabled = !!p.error;
+      add.onclick = () => { creatingProject = p.id; $('worktree-project').textContent = p.root; $('worktree-name').value = ''; $('worktree-error').textContent = ''; $('worktree-dialog').showModal(); $('worktree-name').focus(); };
+      heading.append(title, add); group.append(heading);
+      if (p.error) { const error = document.createElement('p'); error.className = 'hint'; error.textContent = p.error; group.append(error); }
+      for (const w of p.worktrees) {
+        const s = state.sessions.find(s => s.worktreeId === w.id);
+        if (!s) { const hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = w.branch + ' · 100-conversation limit reached'; group.append(hint); continue; }
+        const button = document.createElement('button'); button.className = 'worktree'; button.dataset.worktree = w.id; button.dataset.session = s.id;
+        button.textContent = (s.busy ? '● ' : '') + w.branch + (w.isDefault ? ' · Current checkout' : ''); button.title = w.root;
+        button.setAttribute('aria-current', String(selected === s.id));
+        button.onclick = () => { selected = s.id; messagesKey = ''; render(state); $('message').focus(); }; group.append(button);
+      }
+      return group;
+    });
+    if (!projects.length) { const hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = 'Add a local Git repository to start a worktree agent.'; projects.push(hint); }
+    $('projects').replaceChildren(...projects);
+  }
   $('session-title').textContent = current.title; $('session-id').textContent = current.id;
+  const project = state.projects?.find(p => p.id === current.projectId);
+  const worktree = project?.worktrees.find(w => w.id === current.worktreeId);
+  $('workspace-path').hidden = !current.worktreeId; $('workspace-path').textContent = 'Agent · ' + (worktree?.root || 'Worktree unavailable — refresh project');
+  $('open-vscode').hidden = !worktree;
+  $('message').placeholder = current.worktreeId ? 'Describe the feature to implement in this worktree…' : 'Ask Copilot…';
   $('connection').textContent = state.connection; $('dot').classList.toggle('connected', state.connected);
   const modelKey = JSON.stringify(state.models);
   if (modelKey !== modelsKey) {
@@ -34,11 +63,15 @@ function render(next) {
   $('message').disabled = current.busy; $('send').disabled = current.busy || state.testing || !state.connected || !current.model;
   $('cancel').disabled = !current.busy; $('loading').hidden = !current.busy;
   $('session-status').textContent = current.status;
+  if (current.worktreeId && !state.agentAvailable) $('session-status').textContent = 'Worktree agent requires bridge 0.4.0. Install the updated VSIX and reconnect.';
+  const activity = current.activities?.slice(-4) || [];
+  $('agent-activity').hidden = !activity.length;
+  $('agent-activity').textContent = activity.map(a => `${a.name}${a.path ? ' · ' + a.path : ''}: ${a.status}`).join(' | ');
   $('test').disabled = state.testing || state.sessions.some(s => s.busy); $('cancel-test').hidden = !state.testing;
   const messageKey = selected + JSON.stringify(current.messages);
   if (messageKey !== messagesKey) {
     messagesKey = messageKey;
-    if (!current.messages.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'Connect VS Code, choose a model, and start a conversation.'; $('conversation').replaceChildren(empty); }
+    if (!current.messages.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = current.worktreeId ? 'Describe a feature for this worktree. The agent can inspect files and propose edits for your review.' : 'Connect VS Code, choose a model, and start a conversation.'; $('conversation').replaceChildren(empty); }
     else $('conversation').replaceChildren(...current.messages.map(m => {
       const entry = document.createElement('article'); entry.className = 'message ' + m.role;
       const author = document.createElement('strong'); author.textContent = m.role === 'assistant' ? 'Copilot · VS Code' : m.role === 'user' ? 'You' : 'Request status';
@@ -48,7 +81,30 @@ function render(next) {
   }
   const diagnostics = state.diagnostics.join('\n');
   if ($('diagnostics').textContent !== diagnostics) { $('diagnostics').textContent = diagnostics; $('diagnostics').scrollTop = $('diagnostics').scrollHeight; }
+  const approval = state.approvals?.[0];
+  if (!approval) { if ($('edit-dialog').open) $('edit-dialog').close(); approvalId = null; }
+  else if (approval.id !== approvalId) {
+    approvalId = approval.id;
+    $('edit-path').textContent = `${approval.title} · ${approval.root}\n${approval.path}`;
+    $('edit-before').textContent = approval.before ?? '(New file)'; $('edit-after').textContent = approval.after;
+    if (!$('edit-dialog').open) $('edit-dialog').showModal();
+  }
 }
+$('add-project').onclick = async () => { $('add-project').disabled = true; try { await command('project.add'); } finally { $('add-project').disabled = false; } };
+$('refresh-projects').onclick = () => command('project.refresh');
+$('open-vscode').onclick = () => command('worktree.open', { worktreeId: state.sessions.find(s => s.id === selected)?.worktreeId });
+$('close-worktree').onclick = () => $('worktree-dialog').close();
+$('worktree-form').onsubmit = async event => {
+  event.preventDefault(); $('create-worktree').disabled = true; $('worktree-error').textContent = 'Creating worktree…';
+  try {
+    const response = await window.promptDeck.command('worktree.create', { projectId: creatingProject, name: $('worktree-name').value });
+    if (!response.ok) { $('worktree-error').textContent = response.error; return; }
+    selected = response.result; $('worktree-dialog').close(); render(await command('state'));
+  } finally { $('create-worktree').disabled = false; }
+};
+$('apply-edit').onclick = () => command('approval', { id: approvalId, accepted: true });
+$('reject-edit').onclick = () => command('approval', { id: approvalId, accepted: false });
+$('edit-dialog').addEventListener('cancel', event => { event.preventDefault(); command('approval', { id: approvalId, accepted: false }); });
 $('new-session').onclick = async () => { const id = await command('new'); if (id) { selected = id; messagesKey = ''; render(await command('state')); $('message').focus(); } };
 $('connect').onclick = () => command('connect');
 $('model').onchange = () => command('model', { id: selected, model: $('model').value });

@@ -1,5 +1,17 @@
 # Electron verification — 2026-10-28
 
+## Projects and worktree agents (0.4.0)
+
+Implemented multiple local repositories, existing-worktree discovery, current-branch default checkouts, new worktrees on new branches from current HEAD, persisted project selection, independent worktree agent conversations, and Open folder in VS Code. The agent uses documented VS Code model tool calling through the existing account. File edits require review and hash checks; there is no shell-command tool or automatic commit/push. Bridge 0.4.0 is required for agents.
+
+`npm test`: **21 tests PASS**, including actual Git repositories and worktrees in disposable folders, two-project persistence/deduplication, unchanged dirty default checkout, local container exclusion, invalid/duplicate branches, file listing/read/search/replacement, three concurrent worktree agents over real authenticated IPC, approved edits isolated to each root, rejected edits, stale-file protection, cancellation/disconnection during review, duplicate-send protection, path traversal and symlink/junction rejection. Provider responses are scripted fixtures in these tests.
+
+`npm run test:electron`: **PASS** in an actual Electron window. The test exercises adding two projects via a stubbed native directory picker, selecting the current branch, creating a real Git worktree through the name dialog, selecting the new worktree, the documented VS Code folder URI (OS launch intercepted), and applying a proposed agent edit. The new file is verified in that worktree and absent from the parent checkout. Existing chat/security/connection-properties checks still pass.
+
+Bridge VSIX packaging and Windows x64 packaging: **PASS**. `npm run test:packaged`: **PASS**, running the same UI checks against the actual executable. Artifacts: `artifacts/projects-worktrees-final/PromptDeck-win32-x64/PromptDeck.exe`, `artifacts/promptdeck-bridge-0.4.0.vsix`, and `artifacts/electron-packaged-smoke.png`. Install the new VSIX, reload VS Code, and reconnect before using worktree agents. The packaged folder includes that VSIX in `resources`. Generated artifacts remain excluded from Git.
+
+Live Copilot tool calling, real corporate model compatibility for agents, and the external VS Code folder-opening result remain **unverified** by these automated checks. Prior successful live chat evidence below does not verify agent behavior. The UI reports older bridges and actual model errors without fallback. The application does not extract credentials or alter corporate networking.
+
 ## Fresh-checkout VSIX packaging fix
 
 Reproduced the work-PC screenshot's `ENOENT` using the real VSIX packager in a temporary checkout without `artifacts`. The former extension npm script wrote directly into the missing parent folder. A regression test failed with the same error before the fix.

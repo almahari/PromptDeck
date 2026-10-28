@@ -11,7 +11,17 @@ const { collectConnectionInfo } = require('./connection-info');
 
 function activate(context) {
   const connectionInfo = () => collectConnectionInfo(vscode, context);
-  const host = createHost(vscode, { connectionInfo });
+  const pendingTools = new Map();
+  const host = createHost(vscode, { connectionInfo, invokeTool(request, token) {
+    if (!socket || socket.destroyed || token.isCancellationRequested) return Promise.reject(new Error('Agent disconnected or cancelled.'));
+    const toolId = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      const finish = (error, result) => { pendingTools.delete(toolId); listener.dispose(); error ? reject(error) : resolve(result); };
+      const listener = token.onCancellationRequested(() => finish(new Error('Request cancelled.')));
+      pendingTools.set(toolId, { finish });
+      try { socket.write(frame({ event: 'tool', toolId, ...request })); } catch (e) { finish(e); }
+    });
+  } });
   let instance = crypto.randomUUID();
   let socket;
   let connecting = false;
@@ -41,7 +51,7 @@ function activate(context) {
       socket = connection;
       let accepted = false;
       connection.on('connect', () => {
-        connection.write(frame({ type: 'hello', protocol: 2, capability: endpoint.capability, instance, version: vscode.version, models, connectionInfo: properties }));
+        connection.write(frame({ type: 'hello', protocol: 2, capability: endpoint.capability, instance, version: vscode.version, models, connectionInfo: properties, capabilities: { agentTools: true } }));
       });
       readFrames(connection, message => {
           if (!accepted) {
@@ -49,6 +59,9 @@ function activate(context) {
             accepted = true; status.text = 'PromptDeck: connected';
             output.appendLine(`Electron desktop connected. VS Code version ${vscode.version}; ${models.length} Copilot models. Credentials stay in VS Code.`);
             return;
+          }
+          if (message?.method === 'toolResult') {
+            pendingTools.get(message.id)?.finish(message.error ? new Error(String(message.error)) : null, message.result); return;
           }
           host.request(message).then(reply => {
             if (reply && !connection.destroyed) connection.write(frame(reply));
@@ -58,7 +71,7 @@ function activate(context) {
         output.appendLine(`Local bridge connection failed (${error.code || 'ipc_error'}). Open PromptDeck, then run PromptDeck: Connect Desktop again.`);
         vscode.window.showErrorMessage('PromptDeck local connection failed. Open the desktop app first, then run PromptDeck: Connect Desktop. See PromptDeck Bridge output for the error code.');
       });
-      connection.on('close', () => { host.clear(); instance = crypto.randomUUID(); status.text = 'PromptDeck: disconnected'; if (socket === connection) socket = undefined; });
+      connection.on('close', () => { host.clear(); for (const item of pendingTools.values()) item.finish(new Error('Desktop disconnected.')); instance = crypto.randomUUID(); status.text = 'PromptDeck: disconnected'; if (socket === connection) socket = undefined; });
     } catch (error) {
       // Do not serialize SDK objects, headers, or authentication details.
       vscode.window.showErrorMessage('PromptDeck: ' + String(error.message || 'Could not access VS Code Copilot models.'));

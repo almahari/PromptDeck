@@ -55,10 +55,24 @@ class BridgeServer extends EventEmitter {
         const models = this.parseModels(message.models);
         authenticated = true; clearTimeout(timer); this.peer = socket;
         this.instance = message.instance; this.version = String(message.version || 'unknown'); this.models = models;
+        this.capabilities = { agentTools: message.capabilities?.agentTools === true };
         this.connectionInfo = safeReport(message.connectionInfo); this.connectedAt = new Date().toISOString();
         socket.write(frame({ event: 'accepted' }));
         this.log?.write(`VS Code connected: version=${this.version}; models=${models.length}. Existing VS Code model access; credentials stay in the editor.`);
         this.emit('connected'); return;
+      }
+      if (message?.event === 'tool') {
+        const parent = this.pending.get(message.requestId);
+        if (!parent || parent.method !== 'send' || parent.sessionId !== message.sessionId || typeof message.toolId !== 'string') return;
+        Promise.resolve().then(() => {
+          if (!this.toolHandler) throw new Error('Workspace tools unavailable.');
+          return this.toolHandler(message, parent.signal);
+        }).then(result => {
+          if (this.pending.has(message.requestId) && !socket.destroyed) socket.write(frame({ method: 'toolResult', id: message.toolId, result }));
+        }).catch(error => {
+          if (this.pending.has(message.requestId) && !socket.destroyed) socket.write(frame({ method: 'toolResult', id: message.toolId, error: String(error.message) }));
+        });
+        return;
       }
       if (typeof message?.id !== 'string') { socket.destroy(); return; }
       const item = this.pending.get(message.id);
@@ -89,7 +103,7 @@ class BridgeServer extends EventEmitter {
         finish(reject, Object.assign(new Error(message), { code }));
       };
       const abort = () => cancel('cancelled', 'Request cancelled.');
-      this.pending.set(id, { resolve: value => finish(resolve, value), reject: error => finish(reject, error) });
+      this.pending.set(id, { method, sessionId: args.sessionId, signal, resolve: value => finish(resolve, value), reject: error => finish(reject, error) });
       signal?.addEventListener('abort', abort, { once: true });
       timer = setTimeout(() => cancel('timeout', 'VS Code request timed out. Check any model-access consent dialog in VS Code.'), timeout);
       try { this.peer.write(frame({ id, method, args })); } catch (error) { finish(reject, error); }
