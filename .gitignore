@@ -4,3 +4,8 @@
 .research/
 *.user
 artifacts/
+**/node_modules/
+*.vsix
+dist/
+coverage/
+test-results/

@@ -1,0 +1,21 @@
+{
+  "name": "promptdeck",
+  "version": "0.2.0",
+  "description": "Electron multi-session chat using the existing VS Code Copilot account",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs vscode-bridge/test/*.test.js",
+    "test:electron": "node scripts/smoke.cjs",
+    "test:packaged": "node scripts/smoke.cjs --packaged",
+    "package:win": "node scripts/package.cjs",
+    "package:bridge": "npm --prefix vscode-bridge run package"
+  },
+  "devDependencies": {
+    "electron": "45.1.0",
+    "@electron/packager": "20.3.0",
+    "playwright": "1.64.1"
+  }
+}

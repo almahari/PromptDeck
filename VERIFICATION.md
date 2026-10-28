@@ -1,37 +1,43 @@
-# Verification on 2026-10-27
+# Electron rebuild verification — 2026-10-28
 
-Environment: Windows x64, .NET SDK 10.0.403 building `net8.0-windows`; .NET 8 Windows Desktop runtime installed. Official NuGet package `GitHub.Copilot.SDK 1.0.27`, bundled Windows runtime 1.0.104.
+The application has been rebuilt with **Node.js and Electron 45.1.0**, replacing the C#/.NET/WPF source and dependencies. VS Code bridge **0.2.0** is the only model connection. It reuses model access from the existing signed-in VS Code profile; it does not create a GitHub/CLI authentication session or export GitHub credentials.
 
-| Criterion | Result |
+Test machine: Windows x64, Node.js 24.18.0, npm 12.1.0. Windows 10, ARM64, other accounts/profiles, and corporate deployment policies were not separately tested.
+
+| Check | Result |
 | --- | --- |
-| Build solution | PASS, Release: zero warnings and zero errors |
-| Windows app startup and clean shutdown | PASS, actual WPF window smoke test; process exit 0 |
-| Three independent local sessions | PASS, unique IDs and separate draft/history/model state |
-| SDK/runtime initialization | PASS, stdio connection established |
-| Supported existing authentication detected | PASS, `gh-cli`, account `almahari` |
-| Same identity as corporate VS Code account | UNVERIFIED; compare displayed account with your corporate identity |
-| Official fresh interactive login | IMPLEMENTED via official CLI `/login`; unverified here; interactive CLI not found on PATH |
-| Retrieve usable models | FAILED: SDK returned an empty list |
-| Account entitlement / organization authorization | UNVERIFIED; auth status alone is insufficient |
-| Create temporary or chat SDK sessions | SKIPPED because no models were discovered |
-| Send prompt / receive response | SKIPPED because no models were discovered |
-| Three independent remote conversations | UNVERIFIED |
-| Concurrent inference | IMPLEMENTED with separate session tasks; UNVERIFIED live |
-| Cancellation, timeouts, model switching, network/policy failure paths | IMPLEMENTED; not induced/verified live |
+| `npm test` | PASS — 10 tests |
+| Three concurrent conversations and independent two-turn recall | PASS through real Node named pipes with fake VS Code models |
+| Per-request cancellation and timeout | PASS; another conversation continues |
+| Pending work after disconnect | PASS; rejected without replay |
+| Incorrect local capability / competing bridge connection | PASS; rejected |
+| Editor restart and unavailable model behavior | PASS; no context replacement or model fallback |
+| Normal prompt/response omission and credential-pattern redaction | PASS |
+| `npm run test:electron` | PASS — actual Electron window |
+| Three UI sessions and independent drafts | PASS |
+| Renderer sandbox, context isolation, disabled Node integration | PASS |
+| Model output containing HTML/event handlers | PASS — rendered literally; no injected DOM/image/code |
+| Connection-test UI | PASS against fake VS Code models |
+| `npm run package:bridge` | PASS — local bridge 0.2.0 VSIX |
+| `npm run package:win` | PASS — Windows x64 app folder |
+| `npm run test:packaged` | PASS — actual packaged Windows executable and UI checks |
+| Live GitHub response through the Electron rebuild | Not verified by the automated checks |
+| Concurrent live provider responses, real model switching, quota/policy/network failure behavior | Not verified live |
 
-Exact relevant connection-test diagnostics:
+The production app contains no hardcoded model catalog. Test fixtures deliberately use fake `model-a` / `model-b` entries; those exist only in test code. Packaged source excludes tests, former .NET artifacts, development tools, logs, and endpoint keys. The VSIX has no third-party runtime dependencies. Root npm dependency audit reported zero vulnerabilities during the rebuild; the VSIX packaging tool is a separate development dependency tree and is not shipped in the extension.
 
-```text
-1. SDK initialization: PASS (runtime connected).
-2. Authentication: authenticated=True; method=gh-cli; account=almahari; status=almahari (via gh)
-2. Authentication: PASS. Copilot entitlement and organization/model authorization remain unverified until inference succeeds.
-3. Model discovery: FAIL [Model discovery unavailable; cause undetermined] InvalidOperationException: Model discovery returned no available models. Account entitlement, policy, or SDK support may be responsible; cause undetermined.
-4. Temporary session creation: SKIPPED (previous step failed).
-5. Inference request: SKIPPED (previous step failed).
-6. Response verification: SKIPPED (previous step failed).
-7. Temporary session cleanup: SKIPPED (no session created).
-```
+Artifacts (excluded from Git):
 
-The SDK returned no explicit entitlement, policy, model-denial, HTTP, or proxy error in this run. There is insufficient evidence to assign the empty list to authentication, corporate network controls, entitlement, policy, or SDK/runtime compatibility. Package compatibility and process startup were verified; end-to-end inference compatibility was not. No credentials were extracted and no provider fallback, arbitrary model ID, or restriction workaround was attempted.
+- `artifacts/electron/PromptDeck-win32-x64/PromptDeck.exe`
+- Final build: `artifacts/electron-final/PromptDeck-win32-x64/PromptDeck.exe` (fresh output directory used after Windows locked the earlier `app.asar` against overwrite)
+- `artifacts/promptdeck-bridge-0.2.0.vsix`
+- `artifacts/electron-smoke.png`
+- `artifacts/electron-packaged-smoke.png`
 
-Next verification: use Official Login to authenticate the intended corporate account through the approved CLI, restart the app, and rerun Test Connection. If the empty result persists, provide the sanitized diagnostics and pinned versions to the organization administrator or SDK maintainers. Successful VS Code inference by itself does not establish CLI/SDK access.
+## Prior connection evidence and its limits
+
+Before the Electron rewrite, VS Code 1.142.0 successfully connected to the WPF bridge and supplied seven model entries. A live model request then displayed VS Code's normal language-model **Allow** dialog; that test timed out while consent was pending. This established catalog access but did not establish successful bridge inference. The Electron rewrite preserves the extension's documented `vscode.lm` model API and independent history behavior, while replacing the .NET transport with Node's local IPC protocol.
+
+A separate earlier standalone Copilot CLI/SDK login did produce `Connection successful` and concurrent SDK responses. The user subsequently ruled out a separate authentication session, so that path has been removed and those results are **not evidence for the current connection**. The desktop does not silently fall back to it.
+
+To finish live verification, reload VS Code after installing bridge 0.2.0, run **PromptDeck: Connect Desktop** in the existing signed-in profile, allow its normal model-access prompt if permitted, and run **Test Connection** in Electron. Then send distinct markers in three sessions concurrently and check that each conversation recalls only its own marker. Existing account identity and corporate permission remain controlled by VS Code and the user/administrator.
