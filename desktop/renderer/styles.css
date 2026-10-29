@@ -12,6 +12,7 @@ button:disabled { opacity:.5; cursor:default; } :focus-visible { outline:3px sol
 #sessions { overflow:auto; margin-top:12px; flex:1; } #sessions button { text-align:left; width:100%; margin:0 0 6px; border-color:transparent; background:transparent; display:flex; justify-content:space-between; } #sessions button[aria-current="true"] { background:white; border-color:#bac9dd; color:#194caa; font-weight:600; } .busy-mark { font-size:11px; font-weight:400; color:#536176; }
 .sidebar-footer { padding-top:14px; font-size:12px; color:#536176; border-top:1px solid #ced6e0; }
 .sidebar-scroll { overflow:auto; flex:1; min-height:0; margin-bottom:12px; }
+#restart-conversation { margin-bottom:8px; }#previous-conversations { margin:0 0 10px; font-size:12px; }#previous-content { overflow:auto; max-height:160px; border:1px solid #dce2e9; padding:8px; margin-top:6px; }#previous-content .message { white-space:pre-wrap; }
 .small { padding:5px 9px; min-height:30px; font-size:12px; }#refresh-projects { margin-top:8px; }
 .project { margin:10px 0 20px; }.project h3 { font-size:14px; overflow-wrap:anywhere; margin:6px 0; }.project .session-heading button { padding:2px 10px; min-height:30px; }
 .worktree { display:block; width:100%; text-align:left; margin-top:5px; padding:8px; font-size:12px; overflow-wrap:anywhere; border-color:transparent; background:transparent; }.worktree[aria-current="true"] { background:white; border-color:#bac9dd; color:#194caa; }

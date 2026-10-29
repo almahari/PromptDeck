@@ -75,6 +75,15 @@ const { connectPeer, fakeVsCode } = require('../test/helpers.cjs');
     const first = (await git(repoRoots[0], ['worktree', 'list', '--porcelain', '-z'])).split('\0').filter(x => x.startsWith('worktree ')).map(x => x.slice(9));
     assert.equal(await fs.readFile(path.join(first[1], 'feature.txt'), 'utf8'), 'Implement the test feature');
     await assert.rejects(fs.access(path.join(repoRoots[0], 'feature.txt')));
+    const oldSession = await page.locator('#session-id').innerText();
+    await page.locator('#message').fill('Keep this draft after reset');
+    await page.locator('#restart-conversation').click();
+    await page.waitForFunction(id => document.getElementById('session-id').textContent !== id, oldSession);
+    assert.equal(await page.locator('#session-title').innerText(), 'feature/ui-test');
+    assert.equal(await page.locator('#message').inputValue(), 'Keep this draft after reset');
+    assert.equal(await page.locator('#conversation .message').count(), 0);
+    await page.locator('#previous-conversations summary').click();
+    assert.ok((await page.locator('#previous-content').innerText()).includes('Implement the test feature'));
     await page.screenshot({ path: path.join(root, 'artifacts', packaged ? 'electron-packaged-smoke.png' : 'electron-smoke.png') });
     console.log('PASS: ' + (packaged ? 'packaged Windows executable' : 'actual Electron window') + ', chat isolation, renderer sandbox, connection properties, multiple projects, real Git worktree creation, VS Code folder URI, and approved agent edit using fake VS Code models.');
   } finally {

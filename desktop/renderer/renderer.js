@@ -60,9 +60,23 @@ function render(next) {
   $('model').value = current.model;
   $('model').disabled = current.busy || state.testing;
   if ($('message').value !== current.draft) $('message').value = current.draft;
-  $('message').disabled = current.busy; $('send').disabled = current.busy || state.testing || !state.connected || !current.model;
+  $('message').disabled = current.busy; $('send').disabled = current.busy || state.testing || !state.connected || !current.model || current.needsRestart;
   $('cancel').disabled = !current.busy; $('loading').hidden = !current.busy;
   $('session-status').textContent = current.status;
+  $('restart-conversation').disabled = current.busy || state.testing;
+  if (current.needsRestart) $('session-status').textContent = 'VS Code bridge restarted. Click Start new conversation to continue in this worktree. Your draft will be kept; previous context will not be sent.';
+  const previous = current.previousConversations || [];
+  $('previous-conversations').hidden = !previous.length;
+  const archiveKey = selected + JSON.stringify(previous);
+  if ($('previous-content').dataset.key !== archiveKey) {
+    $('previous-content').dataset.key = archiveKey;
+    $('previous-content').replaceChildren(...previous.map(turn => {
+      const section = document.createElement('section'); const heading = document.createElement('p');
+      heading.className = 'mono'; heading.textContent = `${turn.at} · ${turn.model} · ${turn.id}`; section.append(heading);
+      for (const message of turn.messages) { const entry = document.createElement('p'); entry.className = 'message'; entry.textContent = `${message.role}: ${message.content}`; section.append(entry); }
+      return section;
+    }));
+  }
   if (current.worktreeId && !state.agentAvailable) $('session-status').textContent = 'Worktree agent requires bridge 0.4.0. Install the updated VSIX and reconnect.';
   const activity = current.activities?.slice(-4) || [];
   $('agent-activity').hidden = !activity.length;
@@ -91,6 +105,10 @@ function render(next) {
   }
 }
 $('add-project').onclick = async () => { $('add-project').disabled = true; try { await command('project.add'); } finally { $('add-project').disabled = false; } };
+$('restart-conversation').onclick = async () => {
+  const id = await command('restart', { id: selected });
+  if (id) { selected = id; messagesKey = ''; render(await command('state')); $('message').focus(); }
+};
 $('refresh-projects').onclick = () => command('project.refresh');
 $('open-vscode').onclick = () => command('worktree.open', { worktreeId: state.sessions.find(s => s.id === selected)?.worktreeId });
 $('close-worktree').onclick = () => $('worktree-dialog').close();

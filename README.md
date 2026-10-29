@@ -1,5 +1,7 @@
 # PromptDeck
 
+Desktop **0.4.1** adds recovery after a VS Code bridge restart. The latest local Windows build is `artifacts/restart-recovery/PromptDeck-win32-x64/PromptDeck.exe`. Close the older desktop build before opening it; desktop conversations are held in memory. Bridge **0.4.0** remains compatible.
+
 A minimal **Node.js + Electron** desktop app for Windows that uses the Copilot account **already signed in to VS Code**. Add multiple local repositories, create Git worktrees, and ask an agent to implement features in a selected worktree. Independent conversations, model selection, concurrent requests, cancellation, and connection diagnostics are included.
 
 The companion extension calls VS Code's documented Language Model API. GitHub credentials stay in VS Code. PromptDeck does not start a GitHub/CLI login, require an OpenAI key, copy tokens, or fall back to another provider. This replaces the earlier C#/.NET implementation; .NET and the standalone Copilot SDK are no longer required.
@@ -42,7 +44,7 @@ This is PromptDeck's own small agent loop over the [public VS Code tool-calling 
 
 There is no shell-command tool, automatic test execution, commit, push, file deletion, or merge action. Open the folder in VS Code to run project checks and manage Git. Models must support tool calling; unsupported model/provider errors are displayed without fallback. Agent operations time out after 10 minutes and are bounded to 12 model rounds / 24 tool calls per turn. Text-file tools support at most 100 KB per file, with bounded listing/search results and context. A failed turn may already have user-approved edits on disk; review them before retrying.
 
-Selected project paths persist in `%LOCALAPPDATA%\PromptDeck\projects.json`. Restarting the app clears conversations; Git worktrees and applied changes remain on disk. After an extension restart, restart PromptDeck to get new worktree conversations. Worktree removal, branch merge, and conversation persistence are outside this prototype.
+Selected project paths persist in `%LOCALAPPDATA%\PromptDeck\projects.json`. Restarting the app clears conversations; Git worktrees and applied changes remain on disk. After a bridge restart, click **Start new conversation** on the selected worktree page. This preserves the worktree, model and unsent draft, assigns a new conversation ID, and starts with empty remote context. Up to ten previous transcripts remain available under **Previous conversations (read only)** until the desktop app closes; they are never automatically sent to the model. Finish or cancel active requests before starting a new conversation. Existing file edits are unchanged. Worktree removal, branch merge, and conversation persistence across desktop restarts are outside this prototype.
 
 Official references: [Git worktree](https://git-scm.com/docs/git-worktree), [VS Code folder URLs](https://code.visualstudio.com/docs/configure/command-line#_opening-vs-code-with-urls).
 

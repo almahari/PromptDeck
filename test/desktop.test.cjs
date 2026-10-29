@@ -60,7 +60,7 @@ test('changed editor instance rejects previous conversation context rather than 
   const f = await fixture(t); const app = new Controller(f.bridge, f.log); const s = app.sessions[0];
   app.setDraft(s.id, 'remember'); await app.send(s.id);
   f.bridge.instance = 'different-editor-instance'; app.setDraft(s.id, 'recall');
-  await assert.rejects(app.send(s.id), /Create a new session/);
+  await assert.rejects(app.send(s.id), /Start new conversation/);
   assert.equal(f.vscode.calls.length, 1);
 });
 test('diagnostics redact credential patterns and authentication headers', () => {

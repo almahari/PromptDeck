@@ -42,6 +42,7 @@ else {
         switch (command) {
           case 'state': result = controller.state(); break;
           case 'new': result = controller.newSession(); break;
+          case 'restart': result = controller.restartConversation(args.id); break;
           case 'project.add': {
             const picked = await dialog.showOpenDialog(window, { title: 'Select Git repositories', properties: ['openDirectory', 'multiSelections'] });
             if (!picked.canceled) {

@@ -100,3 +100,35 @@ test('disconnecting dismisses agent review without applying an edit', async t =>
   assert.equal(c.approvals.size, 0); await assert.rejects(fs.access(path.join(root, 'feature.txt')));
 });
 module.exports = { repository };
+test('restart recovery retains the worktree, draft and old transcript but starts an empty remote context', async t => {
+  const { repos, bridge, log } = await setup(t);
+  const c = new Controller(bridge, log, {}, repos); const s = c.sessions.find(s => s.worktreeId);
+  c.setDraft(s.id, 'first feature'); const first = c.send(s.id);
+  await until(() => c.approvals.size === 1);
+  for (const edit of c.state().approvals) c.approve(edit.id, false);
+  await first;
+  const oldId = s.id; const worktreeId = s.worktreeId; const history = structuredClone(s.messages);
+  // Simulate a changed extension-host identity after a VS Code restart.
+  bridge.instance = 'restarted-editor';
+  c.setDraft(oldId, 'new feature after restart');
+  assert.equal(c.state().sessions.find(x => x.id === oldId).needsRestart, true);
+  await assert.rejects(c.send(oldId), /bridge restarted/);
+  const id = c.restartConversation(oldId);
+  assert.notEqual(id, oldId); assert.equal(s.worktreeId, worktreeId);
+  assert.equal(s.draft, 'new feature after restart'); assert.equal(s.model, 'model-a');
+  assert.deepEqual(s.messages, []); assert.deepEqual(s.previousConversations[0].messages, history);
+  assert.equal(s.previousConversations[0].id, oldId); assert.equal(s.remoteInstance, null);
+  // Restore the fixture identity so the real IPC host can serve a fresh create/send.
+  bridge.instance = 'test-editor-instance';
+  const next = c.send(id); await until(() => c.approvals.size === 1);
+  for (const edit of c.state().approvals) c.approve(edit.id, false);
+  await next; assert.equal(s.messages[0].content, 'new feature after restart');
+});
+test('cannot restart a worktree conversation while an edit review is pending', async t => {
+  const { repos, bridge, log } = await setup(t);
+  const c = new Controller(bridge, log, {}, repos); const s = c.sessions.find(s => s.worktreeId);
+  c.setDraft(s.id, 'feature'); const request = c.send(s.id);
+  await until(() => c.approvals.size === 1);
+  assert.throws(() => c.restartConversation(s.id), /Finish or cancel/);
+  c.cancel(s.id); await request;
+});

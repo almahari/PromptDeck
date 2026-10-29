@@ -28,6 +28,8 @@
     <section id="conversation" aria-label="Conversation" aria-live="polite"><p class="empty">Connect VS Code, choose a model, and start a conversation.</p></section>
     <section class="compose">
       <div id="session-status" role="status" aria-live="polite">Ready</div>
+      <button id="restart-conversation" class="small">Start new conversation</button>
+      <details id="previous-conversations" hidden><summary>Previous conversations (read only)</summary><div id="previous-content"></div></details>
       <div id="agent-activity" class="hint" aria-live="polite" hidden></div>
       <label for="message">Message <span class="hint">Ctrl+Enter to send</span></label>
       <textarea id="message" maxlength="100000" rows="3" placeholder="Ask Copilot…"></textarea>

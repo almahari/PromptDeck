@@ -20,7 +20,8 @@ class Controller extends EventEmitter {
     return { connected: this.bridge.connected, connection: this.connection, models: this.bridge.models,
       projects: this.repositories?.projects || [], agentAvailable: this.bridge.capabilities?.agentTools === true,
       approvals: [...this.approvals.values()].map(({ finish, ...a }) => a),
-      sessions: this.sessions.map(({ remoteInstance, remoteModel, ...s }) => s), testing: this.testing,
+      sessions: this.sessions.map(({ remoteInstance, remoteModel, ...s }) => ({ ...s,
+        needsRestart: Boolean(remoteInstance && this.bridge.connected && remoteInstance !== this.bridge.instance) })), testing: this.testing,
       diagnostics: this.log.lines, logPath: this.log.logPath,
       properties: { connected: this.bridge.connected, bridgeInstance: this.bridge.instance, connectedAt: this.bridge.connectedAt,
         pipePath: this.bridge.pipePath, protocol: 2, desktopPid: process.pid, runtime: this.runtime,
@@ -28,6 +29,18 @@ class Controller extends EventEmitter {
   }
   changed() { this.emit('state', this.state()); }
   find(id) { const s = this.sessions.find(s => s.id === id); if (!s) throw new Error('Unknown conversation.'); return s; }
+  restartConversation(id) {
+    const s = this.find(id);
+    if (s.busy || this.starting.has(id) || this.testing) throw new Error('Finish or cancel the active request before starting a new conversation.');
+    const oldInstance = s.remoteInstance;
+    s.previousConversations = [...(s.previousConversations || []), { id, model: s.model, at: new Date().toISOString(), messages: s.messages }].slice(-10);
+    s.id = randomUUID(); s.remoteInstance = null; s.remoteModel = null;
+    s.messages = []; s.activities = []; s.status = 'New conversation — previous context is not sent. Your draft is preserved.';
+    this.log.write(`New conversation started: id=${s.id}; replaces=${id}; previous context is read-only.`);
+    if (oldInstance && oldInstance === this.bridge.instance && this.bridge.connected)
+      this.bridge.request('dispose', { sessionId: id }, { timeout: 5000 }).catch(error => this.log.failure('Retire previous conversation', error));
+    this.changed(); return s.id;
+  }
   newSession(context = {}) {
     if (this.sessions.length >= 100) throw new Error('Prototype limit: 100 sessions. Restart the app to clear conversations.');
     const s = { id: randomUUID(), title: 'Session ' + (this.sessions.length + 1), model: this.bridge.models[0]?.id || '', draft: '', messages: [], busy: false, status: 'Ready', remoteInstance: null, remoteModel: null, mode: 'chat', activities: [], ...context };
@@ -106,7 +119,7 @@ class Controller extends EventEmitter {
     }
     const prompt = s.draft;
     if (!prompt.trim()) throw new Error('Enter a message first.');
-    if (s.remoteInstance && s.remoteInstance !== this.bridge.instance) throw new Error('VS Code bridge restarted. Create a new session; previous context will not be silently replaced.');
+    if (s.remoteInstance && s.remoteInstance !== this.bridge.instance) throw new Error('VS Code bridge restarted. Click Start new conversation; previous context will remain read-only.');
     const abort = new AbortController(); this.active.set(id, abort);
     const options = { signal: abort.signal, timeout: s.mode === 'agent' ? 600000 : 120000 };
     s.busy = true; s.status = 'Waiting for Copilot…'; s.draft = ''; s.messages.push({ role: 'user', content: prompt }); this.changed();

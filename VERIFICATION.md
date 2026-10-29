@@ -1,5 +1,13 @@
 # Electron verification — 2026-10-28
 
+## Bridge restart recovery (desktop 0.4.1 — 2026-10-29)
+
+The previous guard rejected stale extension-host conversation IDs correctly, but worktree pages offered no action to start a replacement conversation. Reproduced with a changed bridge identity: the new regression tests failed before the fix. Added **Start new conversation** to both chat and worktree pages. It keeps the selected worktree, model, draft and up to ten read-only prior transcripts while assigning a fresh ID and empty model context. A stale conversation now disables Send and explains the recovery action. Active requests/reviews must finish or be cancelled first. No replay or filesystem change is performed by reset.
+
+`npm test`: **23 tests PASS**. The regression exercises the stale guard, replacement ID/context, draft/model/worktree retention, prior transcript access and a successful new agent turn over real IPC. A second test rejects reset during a pending edit review. The Electron UI check verifies reset within the same worktree, preserved draft, empty current transcript and visible prior transcript. Models remain scripted fixtures; this does not verify live agent tool calling. Desktop 0.4.1 remains compatible with bridge 0.4.0; no extension reinstall is needed for this fix.
+
+Windows packaging and `npm run test:packaged`: **PASS**. Build: `artifacts/restart-recovery/PromptDeck-win32-x64/PromptDeck.exe`. The currently running older desktop must be closed before launching the new build. Closing the older app discards its in-memory transcripts; reset in the new build retains read-only history for subsequent bridge restarts during that desktop run.
+
 ## Projects and worktree agents (0.4.0)
 
 Implemented multiple local repositories, existing-worktree discovery, current-branch default checkouts, new worktrees on new branches from current HEAD, persisted project selection, independent worktree agent conversations, and Open folder in VS Code. The agent uses documented VS Code model tool calling through the existing account. File edits require review and hash checks; there is no shell-command tool or automatic commit/push. Bridge 0.4.0 is required for agents.
