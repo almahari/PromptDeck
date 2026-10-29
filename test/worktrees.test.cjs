@@ -132,3 +132,36 @@ test('cannot restart a worktree conversation while an edit review is pending', a
   assert.throws(() => c.restartConversation(s.id), /Finish or cancel/);
   c.cancel(s.id); await request;
 });
+test('full access applies edits without prompts in only the selected session and can be revoked', async t => {
+  const { repos, p, bridge, log } = await setup(t);
+  await repos.create(p.id, 'feature/full-access');
+  const c = new Controller(bridge, log, {}, repos); const [one, two] = c.sessions.filter(s => s.worktreeId);
+  assert.equal(one.accessMode, 'review'); c.setAccess(one.id, 'full');
+  assert.equal(two.accessMode, 'review');
+  c.setDraft(one.id, 'automatic feature'); c.setDraft(two.id, 'reviewed feature');
+  const first = c.send(one.id); const second = c.send(two.id);
+  await first; await until(() => c.approvals.size === 1);
+  assert.equal(c.state().approvals[0].sessionId, two.id);
+  const root = (await repos.worktree(one.worktreeId)).root;
+  assert.equal(await fs.readFile(path.join(root, 'feature.txt'), 'utf8'), 'automatic feature');
+  c.cancel(two.id); await second;
+  c.setAccess(one.id, 'review'); await fs.unlink(path.join(root, 'feature.txt'));
+  c.setDraft(one.id, 'review again'); const next = c.send(one.id);
+  await until(() => c.approvals.size === 1); c.cancel(one.id); await next;
+  c.setAccess(one.id, 'full'); const id = c.restartConversation(one.id);
+  assert.equal(c.find(id).accessMode, 'review');
+  assert.throws(() => c.setAccess(c.sessions[0].id, 'full'), /worktree agent/);
+  assert.throws(() => c.setAccess(id, 'anything'), /access mode/);
+});
+test('granting full access resolves this session pending review and keeps hash checks', async t => {
+  const { repos, bridge, log, root } = await setup(t);
+  const c = new Controller(bridge, log, {}, repos); const s = c.sessions.find(s => s.worktreeId);
+  c.setDraft(s.id, 'approve this session'); const request = c.send(s.id);
+  await until(() => c.approvals.size === 1); c.setAccess(s.id, 'full'); await request;
+  assert.equal(c.approvals.size, 0);
+  assert.equal(await fs.readFile(path.join(root, 'feature.txt'), 'utf8'), 'approve this session');
+  c.setDraft(s.id, 'must not overwrite stale content'); await c.send(s.id);
+  assert.equal(c.approvals.size, 0);
+  assert.equal(s.activities.at(-1).status, 'Failed');
+  assert.equal(await fs.readFile(path.join(root, 'feature.txt'), 'utf8'), 'approve this session');
+});

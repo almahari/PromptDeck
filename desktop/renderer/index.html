@@ -29,6 +29,7 @@
     <section class="compose">
       <div id="session-status" role="status" aria-live="polite">Ready</div>
       <button id="restart-conversation" class="small">Start new conversation</button>
+      <div id="access-field" hidden><label for="access-mode">Session access</label><select id="access-mode" aria-describedby="access-description"><option value="review">Review every edit</option><option value="full">Full access — apply file edits automatically</option></select><p id="access-description" class="hint">Applies only to this conversation and its selected worktree. Switch back to review at any time. Shell commands are not available.</p></div>
       <details id="previous-conversations" hidden><summary>Previous conversations (read only)</summary><div id="previous-content"></div></details>
       <div id="agent-activity" class="hint" aria-live="polite" hidden></div>
       <label for="message">Message <span class="hint">Ctrl+Enter to send</span></label>
@@ -50,7 +51,8 @@
     <h2 id="edit-title">Review agent edit</h2><p id="edit-path" class="mono"></p>
     <p class="hint">Only this file will be changed. Review the complete current and proposed contents.</p>
     <div class="edit-columns"><section><h3>Current file</h3><pre id="edit-before" tabindex="0"></pre></section><section><h3>Proposed file</h3><pre id="edit-after" tabindex="0"></pre></section></div>
-    <div class="actions"><button id="apply-edit" class="primary">Apply edit</button><button id="reject-edit">Reject edit</button></div>
+    <div class="actions"><button id="apply-edit" class="primary">Apply edit</button><button id="allow-session">Allow all edits for this session</button><button id="reject-edit">Reject edit</button></div>
+    <p class="hint">Allow all applies this edit and future file edits in this conversation's worktree without further prompts. Other sessions keep their own access settings.</p>
   </dialog>
   <dialog id="properties-dialog" aria-labelledby="properties-title">
     <div class="properties-heading"><h2 id="properties-title">GitHub / VS Code connection properties</h2><button id="close-properties" aria-label="Close connection properties">Close</button></div>

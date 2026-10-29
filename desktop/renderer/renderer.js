@@ -64,6 +64,11 @@ function render(next) {
   $('cancel').disabled = !current.busy; $('loading').hidden = !current.busy;
   $('session-status').textContent = current.status;
   $('restart-conversation').disabled = current.busy || state.testing;
+  $('access-field').hidden = current.mode !== 'agent';
+  $('access-mode').value = current.accessMode || 'review';
+  $('access-description').textContent = current.accessMode === 'full'
+    ? 'Full access is on: file edits apply automatically in this worktree for this conversation. Switch back to review at any time. Shell commands are not available.'
+    : 'Each file edit needs review. Full access allows automatic file edits in this worktree for this conversation. Shell commands are not available.';
   if (current.needsRestart) $('session-status').textContent = 'VS Code bridge restarted. Click Start new conversation to continue in this worktree. Your draft will be kept; previous context will not be sent.';
   const previous = current.previousConversations || [];
   $('previous-conversations').hidden = !previous.length;
@@ -121,6 +126,11 @@ $('worktree-form').onsubmit = async event => {
   } finally { $('create-worktree').disabled = false; }
 };
 $('apply-edit').onclick = () => command('approval', { id: approvalId, accepted: true });
+$('access-mode').onchange = () => command('access', { id: selected, mode: $('access-mode').value });
+$('allow-session').onclick = () => {
+  const approval = state.approvals?.find(a => a.id === approvalId);
+  if (approval) command('access', { id: approval.sessionId, mode: 'full' });
+};
 $('reject-edit').onclick = () => command('approval', { id: approvalId, accepted: false });
 $('edit-dialog').addEventListener('cancel', event => { event.preventDefault(); command('approval', { id: approvalId, accepted: false }); });
 $('new-session').onclick = async () => { const id = await command('new'); if (id) { selected = id; messagesKey = ''; render(await command('state')); $('message').focus(); } };

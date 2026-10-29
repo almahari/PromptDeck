@@ -59,6 +59,7 @@ else {
             await shell.openExternal('vscode://file' + pathToFileURL(worktree.root).pathname + '/'); break;
           }
           case 'approval': controller.approve(args.id, args.accepted); break;
+          case 'access': controller.setAccess(args.id, args.mode); break;
           case 'draft': controller.setDraft(args.id, args.text); break;
           case 'model': controller.setModel(args.id, args.model); break;
           case 'send': await controller.send(args.id); break;

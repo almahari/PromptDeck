@@ -35,7 +35,7 @@ class Controller extends EventEmitter {
     const oldInstance = s.remoteInstance;
     s.previousConversations = [...(s.previousConversations || []), { id, model: s.model, at: new Date().toISOString(), messages: s.messages }].slice(-10);
     s.id = randomUUID(); s.remoteInstance = null; s.remoteModel = null;
-    s.messages = []; s.activities = []; s.status = 'New conversation — previous context is not sent. Your draft is preserved.';
+    s.messages = []; s.activities = []; s.accessMode = 'review'; s.status = 'New conversation — previous context is not sent. Your draft is preserved.';
     this.log.write(`New conversation started: id=${s.id}; replaces=${id}; previous context is read-only.`);
     if (oldInstance && oldInstance === this.bridge.instance && this.bridge.connected)
       this.bridge.request('dispose', { sessionId: id }, { timeout: 5000 }).catch(error => this.log.failure('Retire previous conversation', error));
@@ -43,7 +43,7 @@ class Controller extends EventEmitter {
   }
   newSession(context = {}) {
     if (this.sessions.length >= 100) throw new Error('Prototype limit: 100 sessions. Restart the app to clear conversations.');
-    const s = { id: randomUUID(), title: 'Session ' + (this.sessions.length + 1), model: this.bridge.models[0]?.id || '', draft: '', messages: [], busy: false, status: 'Ready', remoteInstance: null, remoteModel: null, mode: 'chat', activities: [], ...context };
+    const s = { id: randomUUID(), title: 'Session ' + (this.sessions.length + 1), model: this.bridge.models[0]?.id || '', draft: '', messages: [], busy: false, status: 'Ready', remoteInstance: null, remoteModel: null, mode: 'chat', activities: [], accessMode: 'review', ...context };
     this.sessions.push(s); this.changed(); return s.id;
   }
   syncWorktrees() {
@@ -68,6 +68,14 @@ class Controller extends EventEmitter {
     this.syncWorktrees(); if (errors.length) throw new Error(errors.join('\n'));
   }
   approve(id, accepted) { this.approvals.get(id)?.finish(accepted === true); }
+  setAccess(id, mode) {
+    const s = this.find(id);
+    if (s.mode !== 'agent' || !['review', 'full'].includes(mode)) throw new Error('Choose an access mode for a worktree agent session.');
+    s.accessMode = mode;
+    this.log.write(`Session file access changed: id=${s.id}; mode=${mode}; worktree=${s.worktreeId}.`);
+    if (mode === 'full') for (const approval of [...this.approvals.values()]) if (approval.sessionId === id) approval.finish(true);
+    this.changed();
+  }
   async tool(request, signal) {
     const s = this.find(request.sessionId);
     if (!s.busy || s.mode !== 'agent' || !this.active.has(s.id) || signal?.aborted) throw new Error('No active workspace agent request.');
@@ -76,7 +84,7 @@ class Controller extends EventEmitter {
     s.activities.push(activity); s.activities = s.activities.slice(-50); this.changed();
     try {
       const result = await require('./workspace-tools.cjs').executeTool(w.root, request.name, request.input, { signal,
-        approve: (edit, signal) => new Promise(resolve => {
+        approve: (edit, signal) => s.accessMode === 'full' && !signal?.aborted ? Promise.resolve(true) : new Promise(resolve => {
           const id = randomUUID();
           const finish = accepted => { signal?.removeEventListener('abort', cancel); this.approvals.delete(id); this.changed(); resolve(accepted); };
           const cancel = () => finish(false);

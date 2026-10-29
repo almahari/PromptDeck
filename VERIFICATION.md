@@ -1,5 +1,11 @@
 # Electron verification — 2026-10-28
 
+## Session file access (desktop 0.4.2 — 2026-10-29)
+
+Added **Session access** with Review every edit (default) and Full access (automatic file edits in the selected worktree). The edit dialog also offers **Allow all edits for this session**, which resolves that session's pending review and enables automatic future edits. Modes are independent across sessions and can be changed while an agent is working. Starting a new conversation resets to review. Full access retains path restrictions, stale-file hash checks, cancellation, credential-file exclusions and the existing file-tool scope; it does not enable terminal commands or other folders.
+
+`npm test`: **25 tests PASS**, including automatic writes with no approval, independent simultaneous sessions with a pending review in the other worktree, revocation restoring review, pending-review permission grants, stale-hash protection in Full access, and reset to review. The Electron smoke test exercises the review-dialog grant, dropdown state, automatic write without a dialog, session isolation, and reset. Provider responses are scripted fixtures. Windows build: `artifacts/session-access/PromptDeck-win32-x64/PromptDeck.exe`; bridge 0.4.0 remains compatible.
+
 ## Bridge restart recovery (desktop 0.4.1 — 2026-10-29)
 
 The previous guard rejected stale extension-host conversation IDs correctly, but worktree pages offered no action to start a replacement conversation. Reproduced with a changed bridge identity: the new regression tests failed before the fix. Added **Start new conversation** to both chat and worktree pages. It keeps the selected worktree, model, draft and up to ten read-only prior transcripts while assigning a fresh ID and empty model context. A stale conversation now disables Send and explains the recovery action. Active requests/reviews must finish or be cancelled first. No replay or filesystem change is performed by reset.
