@@ -9,37 +9,27 @@
 </head>
 <body>
   <aside>
-    <h1>PromptDeck</h1><p class="subtitle">Your existing VS Code Copilot account</p>
-    <button id="connect" class="primary">Connect VS Code</button>
-    <button id="properties" class="properties-button">Connection properties</button>
-    <div class="connection" role="status" aria-live="polite"><span id="dot" aria-hidden="true"></span><span id="connection">Starting…</span></div>
-    <p class="hint">Keep VS Code open. In its Command Palette, run <strong>PromptDeck: Connect Desktop</strong>.</p>
-    <div class="sidebar-scroll">
-      <div class="session-heading"><h2>Projects</h2><button id="add-project">+ Add</button></div>
-      <button id="refresh-projects" class="small">Refresh worktrees</button>
+    <div class="brand"><h1>PromptDeck</h1><div class="brand-actions"><span id="connection-status" role="status" aria-live="polite" title="Not connected"><span id="dot" aria-hidden="true" data-icon="offline"></span><span id="connection" class="sr-only">Starting…</span></span><button id="connect" class="icon-button" data-icon="plug" aria-label="Connect VS Code" title="Connect VS Code — keep the signed-in editor open"></button><button id="properties" class="icon-button" data-icon="settings" aria-label="Connection properties" title="Connection properties"></button></div></div>
+    <div class="projects-area">
+      <div class="session-heading"><h2>Projects</h2><div class="toolbar"><button id="refresh-projects" class="icon-button" data-icon="refresh" aria-label="Refresh worktrees" title="Refresh worktrees"></button><button id="add-project" class="icon-button" data-icon="plus" aria-label="Add projects" title="Add projects"></button></div></div>
       <nav id="projects" aria-label="Projects and worktrees"></nav>
-      <div class="session-heading"><h2>Chat sessions</h2><button id="new-session" aria-label="New session">+ New</button></div>
+    </div>
+    <div class="chat-area"><div class="session-heading"><h2>Chat sessions</h2><button id="new-session" class="icon-button" data-icon="plus" aria-label="New session" title="New chat session"></button></div>
       <nav id="sessions" aria-label="Chat sessions"></nav>
     </div>
-    <div class="sidebar-footer">No separate GitHub login.<br>No OpenAI API key.</div>
   </aside>
   <main>
-    <header><div class="workspace-heading"><h2 id="session-title">Session 1</h2><p id="workspace-path" class="mono" hidden></p><p id="session-id" class="mono"></p><button id="open-vscode" class="small" hidden>Open folder in VS Code</button></div><div class="model-field"><label for="model">Model</label><select id="model"><option value="">Connect to discover models</option></select></div></header>
+    <header class="worktree-header"><div class="heading-row"><div class="workspace-heading"><h2 id="session-title">Session 1</h2><p id="workspace-path" class="mono" hidden></p><p id="session-id" class="sr-only"></p></div><div class="toolbar header-actions"><button id="open-vscode" class="icon-button" data-icon="code" aria-label="Open folder in VS Code" title="Open folder in VS Code" hidden></button><button id="restart-conversation" class="icon-button" data-icon="restart" aria-label="Start new conversation" title="Start new conversation"></button><button id="test" class="icon-button" data-icon="activity" aria-label="Test Connection" title="Test Connection"></button><button id="cancel-test" class="icon-button" data-icon="stop" aria-label="Cancel test" title="Cancel test" hidden></button><button id="logs" class="icon-button" data-icon="file" aria-label="Open logs" title="Open logs"></button><span class="toolbar-divider" aria-hidden="true"></span><button id="cancel" class="icon-button" data-icon="stop" aria-label="Cancel request" title="Cancel request" disabled></button><button id="send" class="primary icon-button" data-icon="send" aria-label="Send message" title="Send message (Ctrl+Enter)"></button></div></div><div class="header-settings"><div class="model-field"><label for="model">Model</label><select id="model"><option value="">Connect to discover models</option></select></div><div id="access-field" hidden><label for="access-mode">Session access</label><select id="access-mode" aria-describedby="access-description"><option value="review">Review every edit</option><option value="full">Full access</option></select><span id="access-description" class="sr-only"></span></div></div></header>
     <section id="conversation" aria-label="Conversation" aria-live="polite"><p class="empty">Connect VS Code, choose a model, and start a conversation.</p></section>
     <section class="compose">
       <div id="session-status" role="status" aria-live="polite">Ready</div>
-      <button id="restart-conversation" class="small">Start new conversation</button>
-      <div id="access-field" hidden><label for="access-mode">Session access</label><select id="access-mode" aria-describedby="access-description"><option value="review">Review every edit</option><option value="full">Full access — apply file edits automatically</option></select><p id="access-description" class="hint">Applies only to this conversation and its selected worktree. Switch back to review at any time. Shell commands are not available.</p></div>
       <details id="previous-conversations" hidden><summary>Previous conversations (read only)</summary><div id="previous-content"></div></details>
       <div id="agent-activity" class="hint" aria-live="polite" hidden></div>
       <label for="message">Message <span class="hint">Ctrl+Enter to send</span></label>
       <textarea id="message" maxlength="100000" rows="3" placeholder="Ask Copilot…"></textarea>
-      <div class="actions"><button id="send" class="primary">Send</button><button id="cancel" disabled>Cancel request</button><span id="loading" hidden>Working…</span><span id="error" role="alert"></span></div>
+      <div class="compose-feedback"><span id="loading" hidden>Working…</span><span id="error" role="alert"></span></div>
     </section>
-    <section class="diagnostic-panel">
-      <div class="diagnostic-heading"><h2>Connection diagnostics</h2><div><button id="test">Test Connection</button><button id="cancel-test" hidden>Cancel test</button><button id="logs">Open logs</button></div></div>
-      <pre id="diagnostics" tabindex="0" aria-label="Diagnostic log"></pre>
-    </section>
+    <details id="diagnostic-panel" class="diagnostic-panel"><summary>Connection diagnostics</summary><div class="diagnostic-content"><div class="diagnostic-heading"><span class="hint">Local bridge and model requests</span></div><pre id="diagnostics" tabindex="0" aria-label="Diagnostic log"></pre></div></details>
   </main>
   <dialog id="worktree-dialog" aria-labelledby="worktree-title" class="compact-dialog">
     <h2 id="worktree-title">Create worktree</h2>

@@ -1,5 +1,11 @@
 # Electron verification — 2026-10-28
 
+## Compact workspace layout (desktop 0.4.3 — 2026-10-29)
+
+Replaced sidebar action labels with small labelled SVG icon buttons, removed the visible connection/help/footer text, and retained an accessible status icon with a detailed tooltip. Projects receive the flexible sidebar area; each project expands/collapses with a keyboard-accessible toggle, worktree count, and locally remembered state. Worktree/session actions, Send/Cancel, connection test/log actions, model and access controls are grouped in the header. Diagnostics is a native details panel, initially collapsed, which returns its space to the conversation when closed.
+
+Electron UI verification passes for collapse/expand across state updates, readable default-checkout labels, status icon state, action placement in the header, diagnostic content retention and released conversation height. Existing model/chat/worktree/edit/access/restart flows still pass. Inspected screenshots at 1180×850 and 900×700; no horizontal page overflow. Windows build: `artifacts/compact-sidebar/PromptDeck-win32-x64/PromptDeck.exe`. Bridge 0.4.0 remains compatible; inference behavior is unchanged.
+
 ## Session file access (desktop 0.4.2 — 2026-10-29)
 
 Added **Session access** with Review every edit (default) and Full access (automatic file edits in the selected worktree). The edit dialog also offers **Allow all edits for this session**, which resolves that session's pending review and enables automatic future edits. Modes are independent across sessions and can be changed while an agent is working. Starting a new conversation resets to review. Full access retains path restrictions, stale-file hash checks, cancellation, credential-file exclusions and the existing file-tool scope; it does not enable terminal commands or other folders.

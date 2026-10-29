@@ -1,6 +1,8 @@
 # PromptDeck
 
-Desktop **0.4.2** adds per-session access controls. The latest local Windows build is `artifacts/session-access/PromptDeck-win32-x64/PromptDeck.exe`. Close the older desktop build before opening it; desktop conversations are held in memory. Bridge **0.4.0** remains compatible.
+Desktop **0.4.3** adds a compact sidebar, collapsible projects, and a worktree header toolbar. The latest local Windows build is `artifacts/compact-sidebar/PromptDeck-win32-x64/PromptDeck.exe`. Close the older desktop build before opening it; desktop conversations are held in memory. Bridge **0.4.0** remains compatible.
+
+Sidebar actions use small icon buttons with tooltips and accessible labels. A small green check or gray disconnected icon shows bridge status; hover for details. Projects use most of the sidebar height and collapse from their folder/name row; collapsed state is remembered locally. Worktree actions, Send/Cancel, connection testing, logs, model selection and session access are in the page header. Connection diagnostics starts collapsed; click its summary to show or hide the log.
 
 A minimal **Node.js + Electron** desktop app for Windows that uses the Copilot account **already signed in to VS Code**. Add multiple local repositories, create Git worktrees, and ask an agent to implement features in a selected worktree. Independent conversations, model selection, concurrent requests, cancellation, and connection diagnostics are included.
 
