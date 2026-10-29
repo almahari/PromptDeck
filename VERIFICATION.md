@@ -1,5 +1,9 @@
 # Electron verification — 2026-10-28
 
+## Projects-only sidebar (desktop 0.4.4 — 2026-10-29)
+
+Removed Chat sessions, its New action, and the reserved sidebar space. The project list now fills the available sidebar height. With no projects selected, the main view asks the user to add a project; sending is disabled until a worktree is selected. The UI check passes for the empty state, worktree selection and independent worktree drafts, connection testing, project collapse, file edits and access/restart controls. Windows build: `artifacts/projects-only/PromptDeck-win32-x64/PromptDeck.exe`.
+
 ## Compact workspace layout (desktop 0.4.3 — 2026-10-29)
 
 Replaced sidebar action labels with small labelled SVG icon buttons, removed the visible connection/help/footer text, and retained an accessible status icon with a detailed tooltip. Projects receive the flexible sidebar area; each project expands/collapses with a keyboard-accessible toggle, worktree count, and locally remembered state. Worktree/session actions, Send/Cancel, connection test/log actions, model and access controls are grouped in the header. Diagnostics is a native details panel, initially collapsed, which returns its space to the conversation when closed.

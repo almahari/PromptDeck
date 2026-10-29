@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let state, selected, sessionsKey = '', modelsKey = '', messagesKey = '', projectsKey = '', creatingProject, approvalId;
+let state, selected, modelsKey = '', messagesKey = '', projectsKey = '', creatingProject, approvalId;
 const iconPaths = {
   plus: 'M12 5v14M5 12h14', refresh: 'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 2M4 16l2 2a7 7 0 0 0 12-1',
   plug: 'M8 3v5M16 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4', online: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M8 12l3 3 5-6', offline: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M6 6l12 12',
@@ -26,17 +26,9 @@ async function command(name, args) {
 function render(next) {
   state = next;
   if ($('properties-dialog').open) renderProperties();
-  if (!state.sessions.some(s => s.id === selected)) selected = state.sessions[0]?.id;
+  if (!state.sessions.some(s => s.id === selected && s.worktreeId)) selected = state.sessions.find(s => s.worktreeId)?.id || state.sessions[0]?.id;
   const current = state.sessions.find(s => s.id === selected); if (!current) return;
   const key = JSON.stringify(state.sessions.map(s => [s.id, s.title, s.busy])) + selected;
-  if (key !== sessionsKey) {
-    sessionsKey = key; $('sessions').replaceChildren(...state.sessions.filter(s => !s.worktreeId).map(s => {
-      const button = document.createElement('button'); button.textContent = s.title; button.dataset.session = s.id;
-      button.setAttribute('aria-current', String(s.id === selected));
-      if (s.busy) { const label = document.createElement('span'); label.className = 'busy-mark'; label.textContent = 'Working'; button.append(label); }
-      button.onclick = () => { selected = s.id; messagesKey = ''; render(state); $('message').focus(); }; return button;
-    }));
-  }
   const projectKey = JSON.stringify(state.projects) + key;
   if (projectKey !== projectsKey) {
     projectsKey = projectKey;
@@ -73,7 +65,7 @@ function render(next) {
     if (!projects.length) { const hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = 'Add a local Git repository to start a worktree agent.'; projects.push(hint); }
     const scrollTop = $('projects').scrollTop; $('projects').replaceChildren(...projects); $('projects').scrollTop = scrollTop;
   }
-  $('session-title').textContent = current.title; $('session-id').textContent = current.id;
+  $('session-title').textContent = current.worktreeId ? current.title : 'Select a worktree'; $('session-id').textContent = current.id;
   const project = state.projects?.find(p => p.id === current.projectId);
   const worktree = project?.worktrees.find(w => w.id === current.worktreeId);
   $('workspace-path').hidden = !current.worktreeId; $('workspace-path').textContent = 'Agent · ' + (worktree?.root || 'Worktree unavailable — refresh project');
@@ -92,10 +84,10 @@ function render(next) {
   $('model').value = current.model;
   $('model').disabled = current.busy || state.testing;
   if ($('message').value !== current.draft) $('message').value = current.draft;
-  $('message').disabled = current.busy; $('send').disabled = current.busy || state.testing || !state.connected || !current.model || current.needsRestart;
+  $('message').disabled = current.busy || !current.worktreeId; $('send').disabled = current.busy || state.testing || !state.connected || !current.model || current.needsRestart || !current.worktreeId;
   $('cancel').disabled = !current.busy; $('loading').hidden = !current.busy;
   $('session-status').textContent = current.status;
-  $('restart-conversation').disabled = current.busy || state.testing;
+  $('restart-conversation').disabled = current.busy || state.testing || !current.worktreeId;
   $('access-field').hidden = current.mode !== 'agent';
   $('access-mode').value = current.accessMode || 'review';
   $('access-description').textContent = current.accessMode === 'full'
@@ -123,7 +115,7 @@ function render(next) {
   const messageKey = selected + JSON.stringify(current.messages);
   if (messageKey !== messagesKey) {
     messagesKey = messageKey;
-    if (!current.messages.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = current.worktreeId ? 'Describe a feature for this worktree. The agent can inspect files and propose edits for your review.' : 'Connect VS Code, choose a model, and start a conversation.'; $('conversation').replaceChildren(empty); }
+    if (!current.messages.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = current.worktreeId ? 'Describe a feature for this worktree. The agent can inspect files and propose edits for your review.' : 'Add a project and select a worktree to start working.'; $('conversation').replaceChildren(empty); }
     else $('conversation').replaceChildren(...current.messages.map(m => {
       const entry = document.createElement('article'); entry.className = 'message ' + m.role;
       const author = document.createElement('strong'); author.textContent = m.role === 'assistant' ? 'Copilot · VS Code' : m.role === 'user' ? 'You' : 'Request status';
@@ -166,7 +158,6 @@ $('allow-session').onclick = () => {
 };
 $('reject-edit').onclick = () => command('approval', { id: approvalId, accepted: false });
 $('edit-dialog').addEventListener('cancel', event => { event.preventDefault(); command('approval', { id: approvalId, accepted: false }); });
-$('new-session').onclick = async () => { const id = await command('new'); if (id) { selected = id; messagesKey = ''; render(await command('state')); $('message').focus(); } };
 $('connect').onclick = () => command('connect');
 $('model').onchange = () => command('model', { id: selected, model: $('model').value });
 $('message').oninput = () => { const current = state.sessions.find(s => s.id === selected); if (current) current.draft = $('message').value; command('draft', { id: selected, text: $('message').value }); };
