@@ -1,6 +1,6 @@
 {
   "name": "promptdeck",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Electron multi-session chat using the existing VS Code Copilot account",
   "private": true,
   "main": "desktop/main.cjs",

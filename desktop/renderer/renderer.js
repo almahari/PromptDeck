@@ -7,7 +7,7 @@ const iconPaths = {
   settings: 'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6', code: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',
   restart: 'M4 4v6h6M4 10a8 8 0 1 1 1 8', stop: 'M6 6h12v12H6Z', send: 'M12 19V5M5 12l7-7 7 7',
   activity: 'M3 12h4l3-8 4 16 3-8h4', file: 'M14 3H5v18h14V8ZM14 3v5h5M8 12h8M8 16h8',
-  chevron: 'M9 5l7 7-7 7', folder: 'M3 6h7l2 2h9v12H3Z', branch: 'M6 3v12a3 3 0 1 0 3 3M6 9h8a4 4 0 0 0 4-4V3'
+  chevron: 'M9 5l7 7-7 7', collapse: 'M8 4h12v12M4 8h12v12H4ZM7 14h6', folder: 'M3 6h7l2 2h9v12H3Z', branch: 'M6 3v12a3 3 0 1 0 3 3M6 9h8a4 4 0 0 0 4-4V3'
 };
 function icon(name) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -140,6 +140,10 @@ $('restart-conversation').onclick = async () => {
   if (id) { selected = id; messagesKey = ''; render(await command('state')); $('message').focus(); }
 };
 $('refresh-projects').onclick = () => command('project.refresh');
+$('collapse-projects').onclick = () => {
+  for (const project of state?.projects || []) collapsedProjects.add(project.id);
+  rememberProjects(); projectsKey = ''; render(state);
+};
 $('open-vscode').onclick = () => command('worktree.open', { worktreeId: state.sessions.find(s => s.id === selected)?.worktreeId });
 $('close-worktree').onclick = () => $('worktree-dialog').close();
 $('worktree-form').onsubmit = async event => {
