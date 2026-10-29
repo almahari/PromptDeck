@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, shell, session, protocol, net, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, protocol, net, dialog, nativeTheme } = require('electron');
 const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
@@ -27,8 +27,9 @@ else {
     });
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
+    nativeTheme.themeSource = 'dark';
     window = new BrowserWindow({ width: 1180, height: 850, minWidth: 850, minHeight: 650,
-      title: 'PromptDeck — VS Code Copilot', backgroundColor: '#f5f6f8', autoHideMenuBar: true,
+      title: 'PromptDeck — VS Code Copilot', backgroundColor: '#1a212c', autoHideMenuBar: true,
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', (event, url) => { if (url !== 'promptdeck://app/index.html') event.preventDefault(); });

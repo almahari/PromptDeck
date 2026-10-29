@@ -1,5 +1,9 @@
 # Electron verification — 2026-10-28
 
+## Dark appearance (desktop 0.4.6 — 2026-10-29)
+
+Applied dark semantic color tokens to the sidebar, conversation, inputs, selected worktrees, dialogs, edit review, properties tables and diagnostics. Native Electron theme and startup background are dark as well. Retained visible focus rings, green connection status, blue selection and amber Full access styling. Electron and packaged UI flows pass; the dark screenshots were visually inspected. Windows build: `artifacts/dark-mode/PromptDeck-win32-x64/PromptDeck.exe`.
+
 ## Projects-only sidebar (desktop 0.4.4 — 2026-10-29)
 
 Removed Chat sessions, its New action, and the reserved sidebar space. The project list now fills the available sidebar height. With no projects selected, the main view asks the user to add a project; sending is disabled until a worktree is selected. The UI check passes for the empty state, worktree selection and independent worktree drafts, connection testing, project collapse, file edits and access/restart controls. Windows build: `artifacts/projects-only/PromptDeck-win32-x64/PromptDeck.exe`.
